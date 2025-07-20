@@ -284,7 +284,7 @@ end
 -- Calculate scale factor based on screen size
 local screenSize = Services.Workspace.CurrentCamera.ViewportSize
 local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
-scaleFactor = math.clamp(scaleFactor, 0.8, 1.2) -- Adjusted for Android
+scaleFactor = math.clamp(scaleFactor, 0.6, 1.0) -- Increased for Android visibility
 
 -- Main UI
 local mainScreenGui = Instance.new("ScreenGui")
@@ -336,95 +336,10 @@ titleLabel.ZIndex = 11
 local UISizeManager = {
     currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
     sizes = {
-        {width = 440, height = 850, scale = 0.8, name = "Large"},
-        {width = 400, height = 830, scale = 0.7, name = "Medium"},
-        {width = 360, height = 810, scale = 0.6, name = "Small"},
-        {width = 340, height = 720, scale = 0.7, name = "Android"}
-    }
-}
-
--- Create UI Size Toggle Button
-local sizeToggleButton = Instance.new("TextButton", dragHandle)
-sizeToggleButton.Size = UDim2.new(0.08 * scaleFactor, 0, 0.7 * scaleFactor, 0)
-sizeToggleButton.AnchorPoint = Vector2.new(1, 0.5)
-sizeToggleButton.Position = UDim2.new(0.98, 0, 0.5, 0)
-sizeToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-sizeToggleButton.TextColor3 = Color3.new(1, 1, 1)
-sizeToggleButton.Font = Enum.Font.GothamBold
-sizeToggleButton.TextSize = 13 * scaleFactor
-sizeToggleButton.Text = string.sub(UISizeManager.sizes[UISizeManager.currentSizeIndex].name, 1, 1)
-sizeToggleButton.BorderSizePixel = 0
-sizeToggleButton.ZIndex = 25
-local sizeButtonCorner = Instance.new("UICorner", sizeToggleButton)
-sizeButtonCorner.CornerRadius = UDim.new(0, 4 * scaleFactor)
-
--- Auto Farm Checkbox
-local followLabel = Instance.new("TextLabel", frame)
-followLabel.Size = UDim2.new(0, 20 * scaleFactor, 0, 20 * scaleFactor)
-followLabel.Position = UDim2.new(0.05, 0, 0.07, 0)
-followLabel.Text = "Auto Farm: OFF"
-followLabel.TextColor3 = Color3.new(1, 1, 1)
-followLabel.BackgroundTransparency = 1
-followLabel.Font = Enum.Font.GothamBold
-followLabel.TextSize = 18 * scaleFactor-- Calculate scale factor based on screen size
-local screenSize = Services.Workspace.CurrentCamera.ViewportSize
-local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
-scaleFactor = math.clamp(scaleFactor, 0.6, 1.0)
-
--- Main UI
-local mainScreenGui = Instance.new("ScreenGui")
-mainScreenGui.Name = "MobFollowerKillAuraUI"
-mainScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-mainScreenGui.IgnoreGuiInset = true
-mainScreenGui.ResetOnSpawn = false
-mainScreenGui.Parent = game:GetService("CoreGui")
-
--- Create main frame with scaled size
-local frame = Instance.new("Frame", mainScreenGui)
-frame.Size = UDim2.new(0, 440 * scaleFactor, 0, 1000 * scaleFactor)
-frame.Position = UDim2.new(0.02, 0, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BackgroundTransparency = 0.2
-frame.BorderSizePixel = 0
-frame.ZIndex = 100
-local frameCorner = Instance.new("UICorner", frame)
-frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
-
--- Apply UIScale for dynamic resizing
-local uiScale = Instance.new("UIScale", frame)
-uiScale.Scale = scaleFactor
-
--- Drag Handle
-local dragHandle = Instance.new("Frame", frame)
-dragHandle.Size = UDim2.new(1, 0, 0.06 * scaleFactor, 0)
-dragHandle.Position = UDim2.new(0, 0, 0, 0)
-dragHandle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-dragHandle.BackgroundTransparency = 0.3
-dragHandle.BorderSizePixel = 0
-dragHandle.ZIndex = 10
-local dragHandleCorner = Instance.new("UICorner", dragHandle)
-dragHandleCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
-
--- Title
-local titleLabel = Instance.new("TextLabel", dragHandle)
-titleLabel.Size = UDim2.new(1, 0, 1, 0)
-titleLabel.Position = UDim2.new(0, 0, 0, 0)
-titleLabel.Text = "Swordburst 3 by Seisen"
-titleLabel.TextColor3 = Color3.new(1, 1, 1)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 15 * scaleFactor
-titleLabel.TextXAlignment = Enum.TextXAlignment.Center
-titleLabel.ZIndex = 11
-
--- UI Size Management System
-local UISizeManager = {
-    currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1,
-    sizes = {
         {width = 440, height = 850, scale = 1.0, name = "Large"},
         {width = 400, height = 830, scale = 0.9, name = "Medium"},
         {width = 360, height = 810, scale = 0.8, name = "Small"},
-        {width = 340, height = 720, scale = 0.7, name = "Android"}
+        {width = 340, height = 720, scale = 0.7, name = "Android"} -- Larger for Android
     }
 }
 
@@ -524,7 +439,7 @@ autoCollectLabel.ZIndex = 11
 local autoCollectCheckbox = Instance.new("TextButton", frame)
 autoCollectCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoCollectCheckbox.Position = UDim2.new(0.9, 0, 0.21, 0)
-autoCollectLabel.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+autoCollectCheckbox.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
 autoCollectCheckbox.Text = ""
 autoCollectCheckbox.AutoButtonColor = false
 autoCollectCheckbox.ZIndex = 12
@@ -645,7 +560,7 @@ local questDropdownCorner = Instance.new("UICorner", questDropdown)
 questDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local questDropdownFrame = Instance.new("Frame", frame)
-questDropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.7 * scaleFactor, 0)
+questDropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 questDropdownFrame.Position = UDim2.new(0.05, 0, 0.54, 0)
 questDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 questDropdownFrame.BorderSizePixel = 0
@@ -670,7 +585,7 @@ local questLayout = Instance.new("UIListLayout", questScroll)
 questLayout.SortOrder = Enum.SortOrder.LayoutOrder
 questLayout.Padding = UDim.new(0, 5 * scaleFactor)
 questLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    questScroll.CanvasSize = UDim2.new(0, 0, 0, questLayout.AbsoluteContentSize.Y + 20 * scaleFactor)
+    questScroll.CanvasSize = UDim2.new(0, 0, 1.5, questLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
 
 -- Mob Dropdown
@@ -687,7 +602,7 @@ local mobDropdownCorner = Instance.new("UICorner", mobDropdown)
 mobDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dropdownFrame = Instance.new("Frame", frame)
-dropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.7 * scaleFactor, 0)
+dropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 dropdownFrame.Position = UDim2.new(0.5, 0, 0.54, 0)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dropdownFrame.BorderSizePixel = 0
@@ -712,7 +627,7 @@ local listLayout = Instance.new("UIListLayout", scrollbar)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Padding = UDim.new(0, 5 * scaleFactor)
 listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    scrollbar.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 20 * scaleFactor)
+    scrollbar.CanvasSize = UDim2.new(0, 0, 1.5, listLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
 
 -- Auto Dismantle Checkbox
@@ -776,7 +691,7 @@ local dismantleLayout = Instance.new("UIListLayout", dismantleScroll)
 dismantleLayout.SortOrder = Enum.SortOrder.LayoutOrder
 dismantleLayout.Padding = UDim.new(0, 5 * scaleFactor)
 dismantleLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    dismantleScroll.CanvasSize = UDim2.new(0, 0, 0, dismantleLayout.AbsoluteContentSize.Y + 20 * scaleFactor)
+    dismantleScroll.CanvasSize = UDim2.new(0, 0, 0, dismantleLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
 
 -- Open Enchant UI Checkbox
@@ -873,7 +788,7 @@ waystoneDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local waystoneDropdownFrame = Instance.new("Frame", frame)
 waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.90, 0)
-waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
+waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 waystoneDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 waystoneDropdownFrame.BorderSizePixel = 0
 waystoneDropdownFrame.Visible = false
@@ -897,7 +812,7 @@ local waystoneLayout = Instance.new("UIListLayout", waystoneScroll)
 waystoneLayout.SortOrder = Enum.SortOrder.LayoutOrder
 waystoneLayout.Padding = UDim.new(0, 5 * scaleFactor)
 waystoneLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    waystoneScroll.CanvasSize = UDim2.new(0, 0, 0, waystoneLayout.AbsoluteContentSize.Y + 20 * scaleFactor)
+    waystoneScroll.CanvasSize = UDim2.new(0, 0, 1.5, waystoneLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
 
 -- Floor Teleport Dropdown
@@ -915,7 +830,7 @@ floorTeleportDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local floorTeleportDropdownFrame = Instance.new("Frame", frame)
 floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.97, 0)
-floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
+floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 floorTeleportDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 floorTeleportDropdownFrame.BorderSizePixel = 0
 floorTeleportDropdownFrame.Visible = false
@@ -939,7 +854,7 @@ local floorTeleportLayout = Instance.new("UIListLayout", floorTeleportScroll)
 floorTeleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
 floorTeleportLayout.Padding = UDim.new(0, 5 * scaleFactor)
 floorTeleportLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 0, floorTeleportLayout.AbsoluteContentSize.Y + 20 * scaleFactor)
+floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 0.5, floorTeleportLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
 
 -- Floor Teleport logic
