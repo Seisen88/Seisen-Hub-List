@@ -286,7 +286,7 @@ mainScreenGui.Name = "MobFollowerKillAuraUI"
 mainScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 mainScreenGui.IgnoreGuiInset = true
 mainScreenGui.ResetOnSpawn = false
-mainScreenGui.Parent = game:GetService("CoreGui")
+mainScreenGui.Parent = Services.Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Calculate scale factor based on screen size
 local screenSize = Services.Workspace.CurrentCamera.ViewportSize
