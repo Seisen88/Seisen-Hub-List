@@ -203,6 +203,8 @@ local function unlockAllWaystones()
 end
 
 -- GUI
+local UserInputService = game:GetService("UserInputService")
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MobFollowerKillAuraUI"
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -211,8 +213,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0.8, 0, 0.9, 0)
-frame.Position = UDim2.new(0.1, 0, 0.05, 0)
+frame.Size = UDim2.new(0.8, 0, 0.9, 0) -- 80% width, 90% height
+frame.Position = UDim2.new(0.1, 0, 0.05, 0) -- Centered
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
 frame.BorderSizePixel = 0
@@ -226,10 +228,12 @@ local uiScale = Instance.new("UIScale")
 uiScale.Scale = UserInputService.TouchEnabled and 0.6 or 0.8
 uiScale.Parent = frame
 
+-- Limit min/max size
 local sizeConstraint = Instance.new("UISizeConstraint")
 sizeConstraint.MinSize = Vector2.new(300, 400)
 sizeConstraint.MaxSize = Vector2.new(800, 1000)
 sizeConstraint.Parent = frame
+
 
 -- Title
 local titleLabel = Instance.new("TextLabel", frame)
