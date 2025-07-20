@@ -286,35 +286,26 @@ mainScreenGui.Name = "MobFollowerKillAuraUI"
 mainScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 mainScreenGui.IgnoreGuiInset = true
 mainScreenGui.ResetOnSpawn = false
-mainScreenGui.Parent = Services.Players.LocalPlayer:WaitForChild("PlayerGui")
+mainScreenGui.Parent = game:GetService("CoreGui")
 
 -- Calculate scale factor based on screen size
 local screenSize = Services.Workspace.CurrentCamera.ViewportSize
-local isMobile = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
-local baseResolution = isMobile and 720 or 1080
-local scaleFactor = math.min(screenSize.X, screenSize.Y) / baseResolution
-scaleFactor = math.clamp(scaleFactor, 0.5, 1)
-
+local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
 
 -- Create main frame with scaled size
 local frame = Instance.new("Frame", mainScreenGui)
-
--- Apply UIScale for dynamic resizing BEFORE setting size
-local uiScale = Instance.new("UIScale")
-uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
-uiScale.Parent = frame
-
--- Now safely set frame size
-frame.Size = UDim2.new(0, 440, 0, 1000) -- Will scale properly now
+frame.Size = UDim2.new(0, 440, 0, 1000) -- Example: height = 1000 pixels
 frame.Position = UDim2.new(0.02, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
 frame.BorderSizePixel = 0
 frame.ZIndex = 100
-
 local frameCorner = Instance.new("UICorner", frame)
 frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
 
+-- Apply UIScale for dynamic resizing
+local uiScale = Instance.new("UIScale", frame)
+uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
 
 -- Drag Handle
 local dragHandle = Instance.new("Frame", frame)
@@ -1008,7 +999,8 @@ sizeToggleButton.MouseButton1Click:Connect(function()
 end)
 
 -- Initialize with first size
-local initialSize = UISizeManager.sizes[1]
+local isMobile = Services.UserInputService.TouchEnabled
+local initialSize = isMobile and UISizeManager.sizes[3] or UISizeManager.sizes[1]
 frame.Size = UDim2.new(0, initialSize.width, 0, initialSize.height)
 uiScale.Scale = initialSize.scale
 sizeToggleButton.Text = string.sub(initialSize.name, 1, 1)
