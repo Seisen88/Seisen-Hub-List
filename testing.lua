@@ -339,7 +339,7 @@ local UISizeManager = {
         {width = 440, height = 850, scale = 0.8, name = "Large"},
         {width = 400, height = 830, scale = 0.7, name = "Medium"},
         {width = 360, height = 810, scale = 0.6, name = "Small"},
-        {width = 280, height = 600, scale = 0.4, name = "Android"}
+        {width = 340, height = 720, scale = 0.7, name = "Android"}
     }
 }
 
