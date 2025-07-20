@@ -284,7 +284,7 @@ end
 -- Calculate scale factor based on screen size
 local screenSize = Services.Workspace.CurrentCamera.ViewportSize
 local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
-scaleFactor = math.clamp(scaleFactor, 0.8, 1.2) -- Adjusted for Android
+scaleFactor = math.clamp(scaleFactor, 0.6, 1.0)
 
 -- Main UI
 local mainScreenGui = Instance.new("ScreenGui")
@@ -334,11 +334,11 @@ titleLabel.ZIndex = 11
 
 -- UI Size Management System
 local UISizeManager = {
-    currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
+    currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1,
     sizes = {
-        {width = 440, height = 850, scale = 0.8, name = "Large"},
-        {width = 400, height = 830, scale = 0.7, name = "Medium"},
-        {width = 360, height = 810, scale = 0.6, name = "Small"},
+        {width = 440, height = 850, scale = 1.0, name = "Large"},
+        {width = 400, height = 830, scale = 0.9, name = "Medium"},
+        {width = 360, height = 810, scale = 0.8, name = "Small"},
         {width = 340, height = 720, scale = 0.7, name = "Android"}
     }
 }
@@ -573,13 +573,14 @@ questDropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 local questScroll = Instance.new("ScrollingFrame", questDropdownFrame)
 questScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
 questScroll.Position = UDim2.new(0, 5 * scaleFactor, 0, 5 * scaleFactor)
-questScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+questScroll.CanvasSize = UDim2.new(0, 0, 2, 0) -- Increased initial canvas height
 questScroll.BackgroundTransparency = 1
 questScroll.ScrollBarThickness = 4 * scaleFactor
 questScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
 questScroll.BorderSizePixel = 0
 questScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 questScroll.ZIndex = 14
+questScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Auto-resize canvas
 
 local questLayout = Instance.new("UIListLayout", questScroll)
 questLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -615,13 +616,14 @@ dropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 local scrollbar = Instance.new("ScrollingFrame", dropdownFrame)
 scrollbar.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
 scrollbar.Position = UDim2.new(0, 5 * scaleFactor, 0, 5 * scaleFactor)
-scrollbar.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollbar.CanvasSize = UDim2.new(0, 0, 2, 0) -- Increased initial canvas height
 scrollbar.BackgroundTransparency = 1
 scrollbar.ScrollBarThickness = 4 * scaleFactor
 scrollbar.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
 scrollbar.BorderSizePixel = 0
 scrollbar.ScrollingDirection = Enum.ScrollingDirection.Y
 scrollbar.ZIndex = 14
+scrollbar.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Auto-resize canvas
 
 local listLayout = Instance.new("UIListLayout", scrollbar)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -679,13 +681,14 @@ dismantleDropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 local dismantleScroll = Instance.new("ScrollingFrame", dismantleDropdownFrame)
 dismantleScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
 dismantleScroll.Position = UDim2.new(0, 5 * scaleFactor, 0, 5 * scaleFactor)
-dismantleScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+dismantleScroll.CanvasSize = UDim2.new(0, 0, 1, 0) -- Increased initial canvas height
 dismantleScroll.BackgroundTransparency = 1
 dismantleScroll.ScrollBarThickness = 4 * scaleFactor
 dismantleScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
 dismantleScroll.BorderSizePixel = 0
 dismantleScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 dismantleScroll.ZIndex = 14
+dismantleScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Auto-resize canvas
 
 local dismantleLayout = Instance.new("UIListLayout", dismantleScroll)
 dismantleLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -707,7 +710,7 @@ openEnchantUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openEnchantUIManualLabel.ZIndex = 11
 
 local openEnchantUIManualCheckbox = Instance.new("TextButton", frame)
-openEnchantUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
+openEnchantUIManualLabel.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 openEnchantUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.66, 0)
 openEnchantUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openEnchantUIManualCheckbox.Text = ""
@@ -800,13 +803,14 @@ waystoneDropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 local waystoneScroll = Instance.new("ScrollingFrame", waystoneDropdownFrame)
 waystoneScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
 waystoneScroll.Position = UDim2.new(0, 5 * scaleFactor, 0, 5 * scaleFactor)
-waystoneScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+waystoneScroll.CanvasSize = UDim2.new(0, 0, 2, 0) -- Increased initial canvas height
 waystoneScroll.BackgroundTransparency = 1
 waystoneScroll.ScrollBarThickness = 4 * scaleFactor
 waystoneScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
 waystoneScroll.BorderSizePixel = 0
 waystoneScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 waystoneScroll.ZIndex = 14
+waystoneScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Auto-resize canvas
 
 local waystoneLayout = Instance.new("UIListLayout", waystoneScroll)
 waystoneLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -842,13 +846,14 @@ floorTeleportDropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 local floorTeleportScroll = Instance.new("ScrollingFrame", floorTeleportDropdownFrame)
 floorTeleportScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
 floorTeleportScroll.Position = UDim2.new(0, 5 * scaleFactor, 0, 5 * scaleFactor)
-floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 5, 0)
+floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 2, 0) -- Increased initial canvas height
 floorTeleportScroll.BackgroundTransparency = 1
 floorTeleportScroll.ScrollBarThickness = 4 * scaleFactor
 floorTeleportScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
 floorTeleportScroll.BorderSizePixel = 0
 floorTeleportScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 floorTeleportScroll.ZIndex = 14
+floorTeleportScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Auto-resize canvas
 
 local floorTeleportLayout = Instance.new("UIListLayout", floorTeleportScroll)
 floorTeleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
