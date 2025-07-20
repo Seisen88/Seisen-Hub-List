@@ -280,6 +280,12 @@ local function unlockAllWaystones()
     end
 end
 
+
+-- Calculate scale factor based on screen size
+local screenSize = Services.Workspace.CurrentCamera.ViewportSize
+local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
+scaleFactor = math.clamp(scaleFactor, 0.4, 0.8) -- Adjusted for Android
+
 -- Main UI
 local mainScreenGui = Instance.new("ScreenGui")
 mainScreenGui.Name = "MobFollowerKillAuraUI"
@@ -288,13 +294,9 @@ mainScreenGui.IgnoreGuiInset = true
 mainScreenGui.ResetOnSpawn = false
 mainScreenGui.Parent = game:GetService("CoreGui")
 
--- Calculate scale factor based on screen size
-local screenSize = Services.Workspace.CurrentCamera.ViewportSize
-local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
-
 -- Create main frame with scaled size
 local frame = Instance.new("Frame", mainScreenGui)
-frame.Size = UDim2.new(0, 440, 0, 1000) -- Example: height = 1000 pixels
+frame.Size = UDim2.new(0, 440 * scaleFactor, 0, 1000 * scaleFactor)
 frame.Position = UDim2.new(0.02, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
@@ -305,11 +307,11 @@ frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
 
 -- Apply UIScale for dynamic resizing
 local uiScale = Instance.new("UIScale", frame)
-uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
+uiScale.Scale = scaleFactor
 
 -- Drag Handle
 local dragHandle = Instance.new("Frame", frame)
-dragHandle.Size = UDim2.new(1, 0, 0.06, 0)
+dragHandle.Size = UDim2.new(1, 0, 0.06 * scaleFactor, 0)
 dragHandle.Position = UDim2.new(0, 0, 0, 0)
 dragHandle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 dragHandle.BackgroundTransparency = 0.3
@@ -330,9 +332,35 @@ titleLabel.TextSize = 15 * scaleFactor
 titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 titleLabel.ZIndex = 11
 
+-- UI Size Management System
+local UISizeManager = {
+    currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
+    sizes = {
+        {width = 440, height = 850, scale = 0.8, name = "Large"},
+        {width = 400, height = 830, scale = 0.7, name = "Medium"},
+        {width = 360, height = 810, scale = 0.6, name = "Small"},
+        {width = 280, height = 600, scale = 0.4, name = "Android"}
+    }
+}
+
+-- Create UI Size Toggle Button
+local sizeToggleButton = Instance.new("TextButton", dragHandle)
+sizeToggleButton.Size = UDim2.new(0.08 * scaleFactor, 0, 0.7 * scaleFactor, 0)
+sizeToggleButton.AnchorPoint = Vector2.new(1, 0.5)
+sizeToggleButton.Position = UDim2.new(0.98, 0, 0.5, 0)
+sizeToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+sizeToggleButton.TextColor3 = Color3.new(1, 1, 1)
+sizeToggleButton.Font = Enum.Font.GothamBold
+sizeToggleButton.TextSize = 13 * scaleFactor
+sizeToggleButton.Text = string.sub(UISizeManager.sizes[UISizeManager.currentSizeIndex].name, 1, 1)
+sizeToggleButton.BorderSizePixel = 0
+sizeToggleButton.ZIndex = 25
+local sizeButtonCorner = Instance.new("UICorner", sizeToggleButton)
+sizeButtonCorner.CornerRadius = UDim.new(0, 4 * scaleFactor)
+
 -- Auto Farm Checkbox
 local followLabel = Instance.new("TextLabel", frame)
-followLabel.Size = UDim2.new(0, 20, 0, 20)
+followLabel.Size = UDim2.new(0, 20 * scaleFactor, 0, 20 * scaleFactor)
 followLabel.Position = UDim2.new(0.05, 0, 0.07, 0)
 followLabel.Text = "Auto Farm: OFF"
 followLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -343,7 +371,7 @@ followLabel.TextXAlignment = Enum.TextXAlignment.Left
 followLabel.ZIndex = 11
 
 local followCheckbox = Instance.new("TextButton", frame)
-followCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+followCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 followCheckbox.Position = UDim2.new(0.9, 0, 0.07, 0)
 followCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 followCheckbox.Text = ""
@@ -354,7 +382,7 @@ Instance.new("UICorner", followCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Kill Aura Checkbox
 local killAuraLabel = Instance.new("TextLabel", frame)
-killAuraLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+killAuraLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 killAuraLabel.Position = UDim2.new(0.05, 0, 0.10, 0)
 killAuraLabel.Text = "Kill Aura: OFF"
 killAuraLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -365,7 +393,7 @@ killAuraLabel.TextXAlignment = Enum.TextXAlignment.Left
 killAuraLabel.ZIndex = 11
 
 local killAuraCheckbox = Instance.new("TextButton", frame)
-killAuraCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+killAuraCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 killAuraCheckbox.Position = UDim2.new(0.9, 0, 0.115, 0)
 killAuraCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 killAuraCheckbox.Text = ""
@@ -376,7 +404,7 @@ Instance.new("UICorner", killAuraCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Quest Checkbox
 local autoQuestLabel = Instance.new("TextLabel", frame)
-autoQuestLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoQuestLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoQuestLabel.Position = UDim2.new(0.05, 0, 0.15, 0)
 autoQuestLabel.Text = "Auto Quest: OFF (Pick quest below)"
 autoQuestLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -387,7 +415,9 @@ autoQuestLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoQuestLabel.ZIndex = 11
 
 local autoQuestCheckbox = Instance.new("TextButton", frame)
-autoQuestCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoQuest杞
+
+autoQuestCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoQuestCheckbox.Position = UDim2.new(0.9, 0, 0.16, 0)
 autoQuestCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoQuestCheckbox.Text = ""
@@ -398,7 +428,7 @@ Instance.new("UICorner", autoQuestCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Collect Checkbox
 local autoCollectLabel = Instance.new("TextLabel", frame)
-autoCollectLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoCollectLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoCollectLabel.Position = UDim2.new(0.05, 0, 0.2, 0)
 autoCollectLabel.Text = "Auto Collect: ON"
 autoCollectLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -409,7 +439,7 @@ autoCollectLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoCollectLabel.ZIndex = 11
 
 local autoCollectCheckbox = Instance.new("TextButton", frame)
-autoCollectCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoCollectCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoCollectCheckbox.Position = UDim2.new(0.9, 0, 0.21, 0)
 autoCollectCheckbox.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
 autoCollectCheckbox.Text = ""
@@ -420,7 +450,7 @@ Instance.new("UICorner", autoCollectCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Skill Checkbox
 local autoSkillLabel = Instance.new("TextLabel", frame)
-autoSkillLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoSkillLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoSkillLabel.Position = UDim2.new(0.05, 0, 0.25, 0)
 autoSkillLabel.Text = "Auto Skill: OFF"
 autoSkillLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -431,7 +461,7 @@ autoSkillLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoSkillLabel.ZIndex = 11
 
 local autoSkillCheckbox = Instance.new("TextButton", frame)
-autoSkillCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoSkillCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoSkillCheckbox.Position = UDim2.new(0.9, 0, 0.26, 0)
 autoSkillCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoSkillCheckbox.Text = ""
@@ -442,7 +472,7 @@ Instance.new("UICorner", autoSkillCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Claim Checkbox
 local autoClaimLabel = Instance.new("TextLabel", frame)
-autoClaimLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoClaimLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoClaimLabel.Position = UDim2.new(0.05, 0, 0.3, 0)
 autoClaimLabel.Text = "Auto Claim Chest: ON (Click 'Take')"
 autoClaimLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -453,7 +483,7 @@ autoClaimLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoClaimLabel.ZIndex = 11
 
 local autoClaimCheckbox = Instance.new("TextButton", frame)
-autoClaimCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoClaimCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoClaimCheckbox.Position = UDim2.new(0.9, 0, 0.31, 0)
 autoClaimCheckbox.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
 autoClaimCheckbox.Text = ""
@@ -464,7 +494,7 @@ Instance.new("UICorner", autoClaimCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Daily Quests Checkbox
 local autoDailyQuestsLabel = Instance.new("TextLabel", frame)
-autoDailyQuestsLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoDailyQuestsLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoDailyQuestsLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
 autoDailyQuestsLabel.Text = "Auto Claim Daily Quests: OFF"
 autoDailyQuestsLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -475,7 +505,7 @@ autoDailyQuestsLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoDailyQuestsLabel.ZIndex = 11
 
 local autoDailyQuestsCheckbox = Instance.new("TextButton", frame)
-autoDailyQuestsCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoDailyQuestsCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoDailyQuestsCheckbox.Position = UDim2.new(0.9, 0, 0.36, 0)
 autoDailyQuestsCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoDailyQuestsCheckbox.Text = ""
@@ -486,7 +516,7 @@ Instance.new("UICorner", autoDailyQuestsCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Achievement Checkbox
 local autoAchievementLabel = Instance.new("TextLabel", frame)
-autoAchievementLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoAchievementLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoAchievementLabel.Position = UDim2.new(0.05, 0, 0.4, 0)
 autoAchievementLabel.Text = "Auto Claim Achievement: OFF"
 autoAchievementLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -497,7 +527,7 @@ autoAchievementLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoAchievementLabel.ZIndex = 11
 
 local autoAchievementCheckbox = Instance.new("TextButton", frame)
-autoAchievementCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoAchievementCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoAchievementCheckbox.Position = UDim2.new(0.9, 0, 0.41, 0)
 autoAchievementCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoAchievementCheckbox.Text = ""
@@ -506,10 +536,9 @@ autoAchievementCheckbox.ZIndex = 12
 Instance.new("UIAspectRatioConstraint", autoAchievementCheckbox).AspectRatio = 1
 Instance.new("UICorner", autoAchievementCheckbox).CornerRadius = UDim.new(1, 0)
 
-
 -- Dropdown Title
 local dropdownTitleLabel = Instance.new("TextLabel", frame)
-dropdownTitleLabel.Size = UDim2.new(1, 0, 0.05, 0)
+dropdownTitleLabel.Size = UDim2.new(1, 0, 0.05 * scaleFactor, 0)
 dropdownTitleLabel.Position = UDim2.new(0, 0, 0.435, 0)
 dropdownTitleLabel.Text = "Select Quest and Mob"
 dropdownTitleLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -521,7 +550,7 @@ dropdownTitleLabel.ZIndex = 11
 
 -- Quest Dropdown
 local questDropdown = Instance.new("TextButton", frame)
-questDropdown.Size = UDim2.new(0.43, 0, 0.06, 0)
+questDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.06 * scaleFactor, 0)
 questDropdown.Position = UDim2.new(0.05, 0, 0.48, 0)
 questDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 questDropdown.TextColor3 = Color3.new(1, 1, 1)
@@ -533,7 +562,7 @@ local questDropdownCorner = Instance.new("UICorner", questDropdown)
 questDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local questDropdownFrame = Instance.new("Frame", frame)
-questDropdownFrame.Size = UDim2.new(0.43, 0, 0.7, 0)
+questDropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.7 * scaleFactor, 0)
 questDropdownFrame.Position = UDim2.new(0.05, 0, 0.54, 0)
 questDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 questDropdownFrame.BorderSizePixel = 0
@@ -563,7 +592,7 @@ end)
 
 -- Mob Dropdown
 local mobDropdown = Instance.new("TextButton", frame)
-mobDropdown.Size = UDim2.new(0.43, 0, 0.06, 0)
+mobDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.06 * scaleFactor, 0)
 mobDropdown.Position = UDim2.new(0.5, 0, 0.48, 0)
 mobDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mobDropdown.TextColor3 = Color3.new(1, 1, 1)
@@ -575,7 +604,7 @@ local mobDropdownCorner = Instance.new("UICorner", mobDropdown)
 mobDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dropdownFrame = Instance.new("Frame", frame)
-dropdownFrame.Size = UDim2.new(0.43, 0, 0.7, 0)
+dropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.7 * scaleFactor, 0)
 dropdownFrame.Position = UDim2.new(0.5, 0, 0.54, 0)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dropdownFrame.BorderSizePixel = 0
@@ -605,7 +634,7 @@ end)
 
 -- Auto Dismantle Checkbox
 local autoDismantleLabel = Instance.new("TextLabel", frame)
-autoDismantleLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+autoDismantleLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 autoDismantleLabel.Position = UDim2.new(0.05, 0, 0.54, 0)
 autoDismantleLabel.Text = "Auto Dismantle: OFF"
 autoDismantleLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -616,7 +645,7 @@ autoDismantleLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoDismantleLabel.ZIndex = 11
 
 local autoDismantleCheckbox = Instance.new("TextButton", frame)
-autoDismantleCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+autoDismantleCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoDismantleCheckbox.Position = UDim2.new(0.9, 0, 0.55, 0)
 autoDismantleCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoDismantleCheckbox.Text = ""
@@ -627,7 +656,7 @@ Instance.new("UICorner", autoDismantleCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Dismantle Dropdown
 local dismantleDropdown = Instance.new("TextButton", frame)
-dismantleDropdown.Size = UDim2.new(0.9, 0, 0.06, 0)
+dismantleDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
 dismantleDropdown.Position = UDim2.new(0.05, 0, 0.59, 0)
 dismantleDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dismantleDropdown.TextColor3 = Color3.new(1, 1, 1)
@@ -640,7 +669,7 @@ dismantleDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dismantleDropdownFrame = Instance.new("Frame", frame)
 dismantleDropdownFrame.Position = UDim2.new(0.05, 0, 0.64, 0)
-dismantleDropdownFrame.Size = UDim2.new(0.9, 0, 0.2, 0)
+dismantleDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 dismantleDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dismantleDropdownFrame.BorderSizePixel = 0
 dismantleDropdownFrame.Visible = false
@@ -669,7 +698,7 @@ end)
 
 -- Open Enchant UI Checkbox
 local openEnchantUIManualLabel = Instance.new("TextLabel", frame)
-openEnchantUIManualLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+openEnchantUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 openEnchantUIManualLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
 openEnchantUIManualLabel.Text = "Open Enchant UI: OFF"
 openEnchantUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -680,7 +709,7 @@ openEnchantUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openEnchantUIManualLabel.ZIndex = 11
 
 local openEnchantUIManualCheckbox = Instance.new("TextButton", frame)
-openEnchantUIManualCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+openEnchantUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 openEnchantUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.66, 0)
 openEnchantUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openEnchantUIManualCheckbox.Text = ""
@@ -691,7 +720,7 @@ Instance.new("UICorner", openEnchantUIManualCheckbox).CornerRadius = UDim.new(1,
 
 -- Open Mounts UI Checkbox
 local openMountsUIManualLabel = Instance.new("TextLabel", frame)
-openMountsUIManualLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+openMountsUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 openMountsUIManualLabel.Position = UDim2.new(0.05, 0, 0.69, 0)
 openMountsUIManualLabel.Text = "Open Mounts UI: OFF"
 openMountsUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -702,7 +731,7 @@ openMountsUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openMountsUIManualLabel.ZIndex = 11
 
 local openMountsUIManualCheckbox = Instance.new("TextButton", frame)
-openMountsUIManualCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+openMountsUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 openMountsUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.70, 0)
 openMountsUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openMountsUIManualCheckbox.Text = ""
@@ -713,7 +742,7 @@ Instance.new("UICorner", openMountsUIManualCheckbox).CornerRadius = UDim.new(1, 
 
 -- Open Smithing UI Checkbox
 local openSmithingUIManualLabel = Instance.new("TextLabel", frame)
-openSmithingUIManualLabel.Size = UDim2.new(0.8, 0, 0.05, 0)
+openSmithingUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
 openSmithingUIManualLabel.Position = UDim2.new(0.05, 0, 0.73, 0)
 openSmithingUIManualLabel.Text = "Open Smithing UI: OFF"
 openSmithingUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -724,7 +753,7 @@ openSmithingUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openSmithingUIManualLabel.ZIndex = 11
 
 local openSmithingUIManualCheckbox = Instance.new("TextButton", frame)
-openSmithingUIManualCheckbox.Size = UDim2.new(0.05, 0, 0.05, 0)
+openSmithingUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 openSmithingUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.74, 0)
 openSmithingUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openSmithingUIManualCheckbox.Text = ""
@@ -735,7 +764,7 @@ Instance.new("UICorner", openSmithingUIManualCheckbox).CornerRadius = UDim.new(1
 
 -- Unlock All Waystones Button
 local unlockWaystonesButton = Instance.new("TextButton", frame)
-unlockWaystonesButton.Size = UDim2.new(0.9, 0, 0.06, 0)
+unlockWaystonesButton.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
 unlockWaystonesButton.Position = UDim2.new(0.05, 0, 0.785, 0)
 unlockWaystonesButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 unlockWaystonesButton.TextColor3 = Color3.new(1, 1, 1)
@@ -748,7 +777,7 @@ unlockWaystonesButtonCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 -- Waystone Dropdown
 local waystoneDropdown = Instance.new("TextButton", frame)
-waystoneDropdown.Size = UDim2.new(0.9, 0, 0.06, 0)
+waystoneDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
 waystoneDropdown.Position = UDim2.new(0.05, 0, 0.85, 0)
 waystoneDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 waystoneDropdown.TextColor3 = Color3.new(1, 1, 1)
@@ -761,7 +790,7 @@ waystoneDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local waystoneDropdownFrame = Instance.new("Frame", frame)
 waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.90, 0)
-waystoneDropdownFrame.Size = UDim2.new(0.9, 0, 0.4, 0)
+waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
 waystoneDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 waystoneDropdownFrame.BorderSizePixel = 0
 waystoneDropdownFrame.Visible = false
@@ -790,7 +819,7 @@ end)
 
 -- Floor Teleport Dropdown
 local floorTeleportDropdown = Instance.new("TextButton", frame)
-floorTeleportDropdown.Size = UDim2.new(0.9, 0, 0.06, 0)
+floorTeleportDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
 floorTeleportDropdown.Position = UDim2.new(0.05, 0, 0.915, 0)
 floorTeleportDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 floorTeleportDropdown.TextColor3 = Color3.new(1, 1, 1)
@@ -803,7 +832,7 @@ floorTeleportDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local floorTeleportDropdownFrame = Instance.new("Frame", frame)
 floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.97, 0)
-floorTeleportDropdownFrame.Size = UDim2.new(0.9, 0, 0.4, 0)
+floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
 floorTeleportDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 floorTeleportDropdownFrame.BorderSizePixel = 0
 floorTeleportDropdownFrame.Visible = false
@@ -812,7 +841,6 @@ floorTeleportDropdownFrame.ZIndex = 13
 local floorTeleportDropdownFrameCorner = Instance.new("UICorner", floorTeleportDropdownFrame)
 floorTeleportDropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
--- Add this block to define floorTeleportScroll and its layout
 local floorTeleportScroll = Instance.new("ScrollingFrame", floorTeleportDropdownFrame)
 floorTeleportScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
 floorTeleportScroll.Position = UDim2.new(0, 5 * scaleFactor, 0, 5 * scaleFactor)
@@ -829,30 +857,6 @@ floorTeleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
 floorTeleportLayout.Padding = UDim.new(0, 5 * scaleFactor)
 floorTeleportLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 0, floorTeleportLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
-end)
-
-frame.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        if dragging then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        elseif resizing then
-            local delta = input.Position - resizeStart
-            local newWidth = math.clamp(startSize.X.Offset + delta.X, 200, 800) -- Min 200, Max 800 pixels
-            local newHeight = math.clamp(startSize.Y.Offset + delta.Y, 300, 1200) -- Min 300, Max 1200 pixels
-            frame.Size = UDim2.new(0, newWidth, 0, newHeight)
-            
-            -- Update resize handle position
-            resizeHandle.Position = UDim2.new(1, -20, 1, -20)
-        end
-    end
-end)
-
-frame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-        resizing = false
-    end
 end)
 
 -- Floor Teleport logic
@@ -925,23 +929,22 @@ local resizing = false
 local resizeStart = nil
 local startSize = nil
 
--- Create resize handle
+-- Resize Handle
 local resizeHandle = Instance.new("Frame", frame)
-resizeHandle.Size = UDim2.new(0, 20, 0, 20)
-resizeHandle.Position = UDim2.new(1, -20, 1, -20)
+resizeHandle.Size = UDim2.new(0, 20 * scaleFactor, 0, 20 * scaleFactor)
+resizeHandle.Position = UDim2.new(1, -20 * scaleFactor, 1, -20 * scaleFactor)
 resizeHandle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 resizeHandle.BackgroundTransparency = 0.5
 resizeHandle.BorderSizePixel = 0
 resizeHandle.ZIndex = 20
 
 local resizeCorner = Instance.new("UICorner", resizeHandle)
-resizeCorner.CornerRadius = UDim.new(0, 4)
+resizeCorner.CornerRadius = UDim.new(0, 4 * scaleFactor)
 
--- Resize cursor
 local resizeCursor = Instance.new("ImageLabel", resizeHandle)
 resizeCursor.Size = UDim2.new(1, 0, 1, 0)
 resizeCursor.BackgroundTransparency = 1
-resizeCursor.Image = "rbxassetid://6022668888" -- Diagonal resize cursor
+resizeCursor.Image = "rbxassetid://6022668888"
 resizeCursor.ImageColor3 = Color3.fromRGB(200, 200, 200)
 resizeCursor.ZIndex = 21
 
@@ -972,7 +975,7 @@ sizeToggleButton.ZIndex = 25
 local sizeButtonCorner = Instance.new("UICorner", sizeToggleButton)
 sizeButtonCorner.CornerRadius = UDim.new(0, 4)
 
--- Size toggle functionality
+-- Size Toggle Functionality
 sizeToggleButton.MouseButton1Click:Connect(function()
     UISizeManager.currentSizeIndex = UISizeManager.currentSizeIndex + 1
     if UISizeManager.currentSizeIndex > #UISizeManager.sizes then
@@ -981,31 +984,31 @@ sizeToggleButton.MouseButton1Click:Connect(function()
     
     local newSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
     
-    -- Animate size change
     local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local sizeTween = Services.TweenService:Create(frame, tweenInfo, {
-        Size = UDim2.new(0, newSize.width, 0, newSize.height)
+        Size = UDim2.new(0, newSize.width * scaleFactor, 0, newSize.height * scaleFactor)
     })
     sizeTween:Play()
     
-    -- Update UI scale
-    uiScale.Scale = newSize.scale
-    
-    -- Update button text to show current size
+    uiScale.Scale = newSize.scale * scaleFactor
     sizeToggleButton.Text = string.sub(newSize.name, 1, 1)
-    
-    -- Update resize handle position
-    resizeHandle.Position = UDim2.new(1, -20, 1, -20)
+    resizeHandle.Position = UDim2.new(1, -20 * scaleFactor, 1, -20 * scaleFactor)
 end)
 
--- Initialize with first size
-local isMobile = Services.UserInputService.TouchEnabled
-local initialSize = isMobile and UISizeManager.sizes[3] or UISizeManager.sizes[1]
-frame.Size = UDim2.new(0, initialSize.width, 0, initialSize.height)
-uiScale.Scale = initialSize.scale
+-- Initialize Size
+local initialSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
+frame.Size = UDim2.new(0, initialSize.width * scaleFactor, 0, initialSize.height * scaleFactor)
+uiScale.Scale = initialSize.scale * scaleFactor
 sizeToggleButton.Text = string.sub(initialSize.name, 1, 1)
 
--- Dragging logic
+-- Dragging Logic
+local dragging = false
+local dragStart = nil
+local startPos = nil
+local resizing = false
+local resizeStart = nil
+local startSize = nil
+
 dragHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
@@ -1017,16 +1020,13 @@ end)
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         local hit = input.Position
-        
-        -- Check if clicking on size toggle button
         local sizeButtonPos = sizeToggleButton.AbsolutePosition
         local sizeButtonSize = sizeToggleButton.AbsoluteSize
         if hit.X >= sizeButtonPos.X and hit.X <= sizeButtonPos.X + sizeButtonSize.X and 
            hit.Y >= sizeButtonPos.Y and hit.Y <= sizeButtonPos.Y + sizeButtonSize.Y then
-            return -- Don't drag if clicking size button
+            return
         end
         
-        -- Check if clicking on resize handle
         local resizePos = resizeHandle.AbsolutePosition
         local resizeSize = resizeHandle.AbsoluteSize
         if hit.X >= resizePos.X and hit.X <= resizePos.X + resizeSize.X and 
@@ -1035,6 +1035,28 @@ frame.InputBegan:Connect(function(input)
             resizeStart = input.Position
             startSize = frame.Size
         end
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        elseif resizing then
+            local delta = input.Position - resizeStart
+            local newWidth = math.clamp(startSize.X.Offset + delta.X, 200 * scaleFactor, 800 * scaleFactor)
+            local newHeight = math.clamp(startSize.Y.Offset + delta.Y, 300 * scaleFactor, 1200 * scaleFactor)
+            frame.Size = UDim2.new(0, newWidth, 0, newHeight)
+            resizeHandle.Position = UDim2.new(1, -20 * scaleFactor, 1, -20 * scaleFactor)
+        end
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        resizing = false
     end
 end)
 
