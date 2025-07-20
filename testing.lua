@@ -298,18 +298,23 @@ scaleFactor = math.clamp(scaleFactor, 0.5, 1)
 
 -- Create main frame with scaled size
 local frame = Instance.new("Frame", mainScreenGui)
-frame.Size = UDim2.new(0, 440, 0, 1000) -- Example: height = 1000 pixels
+
+-- Apply UIScale for dynamic resizing BEFORE setting size
+local uiScale = Instance.new("UIScale")
+uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
+uiScale.Parent = frame
+
+-- Now safely set frame size
+frame.Size = UDim2.new(0, 440, 0, 1000) -- Will scale properly now
 frame.Position = UDim2.new(0.02, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
 frame.BorderSizePixel = 0
 frame.ZIndex = 100
+
 local frameCorner = Instance.new("UICorner", frame)
 frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
 
--- Apply UIScale for dynamic resizing
-local uiScale = Instance.new("UIScale", frame)
-uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
 
 -- Drag Handle
 local dragHandle = Instance.new("Frame", frame)
