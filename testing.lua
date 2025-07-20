@@ -415,8 +415,6 @@ autoQuestLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoQuestLabel.ZIndex = 11
 
 local autoQuestCheckbox = Instance.new("TextButton", frame)
-autoQuest杞
-
 autoQuestCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
 autoQuestCheckbox.Position = UDim2.new(0.9, 0, 0.16, 0)
 autoQuestCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
