@@ -96,50 +96,47 @@ local mountsStation = stations:WaitForChild("Mounts", 9e9)
 local smithingStation = stations:WaitForChild("Smithing", 9e9)
 
 -- CONFIG
-local config = {
-    HEIGHT_OFFSET = 20,
-    FOLLOW_DISTANCE = 3,
-    BASE_SPEED = 40,
-    SPEED_CAP = 90,
-    DISTANCE_THRESHOLD = 200,
-    KILL_AURA_RANGE = 100,
-    KILL_AURA_DELAY = 0.26,
-    AUTO_COLLECT_ENABLED = true,
-    COLLECT_RADIUS = 50,
-    CHECK_INTERVAL = 0.3,
-    SKILL_SLOT = 1,
-    FALLBACK_COOLDOWN = 2,
-    QUEST_CHECK_INTERVAL = 1,
-    TRIGGER_DISTANCE = 500,
-    AUTO_CLAIM_ENABLED = true,
-    TELEPORT_DELAY = 2
-}
+-- CONFIG
+local HEIGHT_OFFSET = 20
+local FOLLOW_DISTANCE = 3
+local BASE_SPEED = 40
+local SPEED_CAP = 90
+local DISTANCE_THRESHOLD = 200
+local KILL_AURA_RANGE = 100
+local KILL_AURA_DELAY = 0.26
+local AUTO_COLLECT_ENABLED = true
+local COLLECT_RADIUS = 50
+local CHECK_INTERVAL = 0.3
+local SKILL_SLOT = 1
+local FALLBACK_COOLDOWN = 2
+local QUEST_CHECK_INTERVAL = 1
+local TRIGGER_DISTANCE = 500
+local AUTO_CLAIM_ENABLED = true
+local TELEPORT_DELAY = 2
 
 -- Runtime state
-local state = {
-    stopFollowing = true,
-    killAuraEnabled = false,
-    autoCollectEnabled = true,
-    autoSkillEnabled = false,
-    autoClaimEnabled = true,
-    autoDismantleEnabled = false,
-    autoDailyQuestsEnabled = false,
-    autoAchievementEnabled = false,
-    openEnchantUIManualEnabled = false,
-    openMountsUIManualEnabled = false,
-    openSmithingUIManualEnabled = false,
-    selectedMobName = "Razor Boar",
-    selectedQuestId = nil,
-    selectedRarity = "Uncommon",
-    bodyVelocity = nil,
-    tween = nil,
-    lastVelocity = Vector3.zero,
-    global_isEnabled_autoquest = false,
-    dropCache = {},
-    lastUsed = {},
-    claimedQuest = {},
-    claimedReward = {}
-}
+local stopFollowing = true
+local killAuraEnabled = false
+local autoCollectEnabled = true
+local autoSkillEnabled = false
+local autoClaimEnabled = true
+local autoDismantleEnabled = false
+local autoDailyQuestsEnabled = false
+local autoAchievementEnabled = false
+local openEnchantUIManualEnabled = false
+local openMountsUIManualEnabled = false
+local openSmithingUIManualEnabled = false
+local selectedMobName = "Razor Boar"
+local selectedQuestId = nil
+local selectedRarity = "Uncommon"
+local bodyVelocity = nil
+local tween = nil
+local lastVelocity = Vector3.zero
+local global_isEnabled_autoquest = false
+local dropCache = {}
+local lastUsed = {}
+local claimedQuest = {}
+local claimedReward = {}
 
 -- Rarity name to numeric index
 local rarityMap = {
