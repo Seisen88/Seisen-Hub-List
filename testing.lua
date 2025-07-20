@@ -293,6 +293,7 @@ local screenSize = Services.Workspace.CurrentCamera.ViewportSize
 local isMobile = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
 local baseResolution = isMobile and 720 or 1080
 local scaleFactor = math.min(screenSize.X, screenSize.Y) / baseResolution
+scaleFactor = math.clamp(scaleFactor, 0.5, 1)
 
 
 -- Create main frame with scaled size
