@@ -284,7 +284,7 @@ end
 -- Calculate scale factor based on screen size
 local screenSize = Services.Workspace.CurrentCamera.ViewportSize
 local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
-scaleFactor = math.clamp(scaleFactor, 0.4, 0.8) -- Adjusted for Android
+scaleFactor = math.clamp(scaleFactor, 0.8, 1.2) -- Adjusted for Android
 
 -- Main UI
 local mainScreenGui = Instance.new("ScreenGui")
