@@ -288,28 +288,17 @@ mainScreenGui.IgnoreGuiInset = true
 mainScreenGui.ResetOnSpawn = false
 mainScreenGui.Parent = game:GetService("CoreGui")
 
--- Calculate scale factor based on screen size and device type
-local isMobile = Services.UserInputService.TouchEnabled
+-- Calculate scale factor based on screen size
 local screenSize = Services.Workspace.CurrentCamera.ViewportSize
-local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
+local isMobile = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
+local baseResolution = isMobile and 720 or 1080
+local scaleFactor = math.min(screenSize.X, screenSize.Y) / baseResolution
 
--- Mobile-specific scaling
-local mobileUIScale = 1
-local mobileFrameSize = {width = 0.96, height = 0.92, scale = 1, name = "Mobile"}
-if isMobile then
-    scaleFactor = 1
-    mobileUIScale = 1
-end
 
 -- Create main frame with scaled size
 local frame = Instance.new("Frame", mainScreenGui)
-if isMobile then
-    frame.Size = UDim2.new(mobileFrameSize.width, 0, mobileFrameSize.height, 0)
-    frame.Position = UDim2.new(0.02, 0, 0.04, 0)
-else
-    frame.Size = UDim2.new(0, 440, 0, 1000) -- Example: height = 1000 pixels
-    frame.Position = UDim2.new(0.02, 0, 0.1, 0)
-end
+frame.Size = UDim2.new(0, 440, 0, 1000) -- Example: height = 1000 pixels
+frame.Position = UDim2.new(0.02, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
 frame.BorderSizePixel = 0
@@ -319,11 +308,7 @@ frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
 
 -- Apply UIScale for dynamic resizing
 local uiScale = Instance.new("UIScale", frame)
-if isMobile then
-    uiScale.Scale = mobileUIScale
-else
-    uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
-end
+uiScale.Scale = math.clamp(scaleFactor, 0.5, 1)
 
 -- Drag Handle
 local dragHandle = Instance.new("Frame", frame)
