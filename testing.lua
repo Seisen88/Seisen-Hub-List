@@ -331,9 +331,10 @@ end
 
 
 -- Calculate scale factor based on screen size
-local screenSize = Services.Workspace.CurrentCamera.ViewportSize
-local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
-scaleFactor = math.clamp(scaleFactor, 0.6, 1.0) -- Increased for Android visibility
+-- local screenSize = Services.Workspace.CurrentCamera.ViewportSize
+-- local scaleFactor = math.min(screenSize.X, screenSize.Y) / 1080
+-- scaleFactor = math.clamp(scaleFactor, 0.6, 1.0) -- Increased for Android visibility
+local scaleFactor = 1.0 -- Fixed scale, no auto-scaling for Android
 
 -- Main UI
 local mainScreenGui = Instance.new("ScreenGui")
@@ -382,8 +383,17 @@ titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 titleLabel.ZIndex = 11
 
 -- UI Size Management System
+-- local UISizeManager = {
+--     currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
+--     sizes = {
+--         {width = 600, height = 600, scale = 1.0, name = "Large"},
+--         {width = 540, height = 500, scale = 0.9, name = "Medium"},
+--         {width = 480, height = 400, scale = 0.8, name = "Small"},
+--         {width = 420, height = 350, scale = 0.7, name = "Android"}
+--     }
+-- }
 local UISizeManager = {
-    currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
+    currentSizeIndex = 1, -- Always start with Large
     sizes = {
         {width = 600, height = 600, scale = 1.0, name = "Large"},
         {width = 540, height = 500, scale = 0.9, name = "Medium"},
@@ -1016,33 +1026,6 @@ resizeCursor.BackgroundTransparency = 1
 resizeCursor.Image = "rbxassetid://6022668888"
 resizeCursor.ImageColor3 = Color3.fromRGB(200, 200, 200)
 resizeCursor.ZIndex = 21
-
--- UI Size Management System
-local UISizeManager = {
-    currentSizeIndex = 1,
-    sizes = {
-        {width = 600, height = 600, scale = 1.0, name = "Large"},
-        {width = 540, height = 500, scale = 0.9, name = "Medium"},
-        {width = 480, height = 400, scale = 0.8, name = "Small"},
-        {width = 420, height = 350, scale = 0.7, name = "Android"}
-    }
-}
-
--- Create UI Size Toggle Button
-local sizeToggleButton = Instance.new("TextButton", dragHandle)
-sizeToggleButton.Size = UDim2.new(0.08, 0, 0.7, 0) -- smaller and fits drag bar
-sizeToggleButton.AnchorPoint = Vector2.new(1, 0.5)
-sizeToggleButton.Position = UDim2.new(0.98, 0, 0.5, 0) -- right-aligned, vertically centered
-sizeToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-sizeToggleButton.TextColor3 = Color3.new(1, 1, 1)
-sizeToggleButton.Font = Enum.Font.GothamBold
-sizeToggleButton.TextSize = 13
-sizeToggleButton.Text = "L"
-sizeToggleButton.BorderSizePixel = 0
-sizeToggleButton.ZIndex = 25
-
-local sizeButtonCorner = Instance.new("UICorner", sizeToggleButton)
-sizeButtonCorner.CornerRadius = UDim.new(0, 4)
 
 -- Size Toggle Functionality
 sizeToggleButton.MouseButton1Click:Connect(function()
