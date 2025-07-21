@@ -385,7 +385,8 @@ local UISizeManager = {
     sizes = {
         {width = 600, height = 600, scale = 1.0, name = "Large"},
         {width = 540, height = 500, scale = 0.9, name = "Medium"},
-        {width = 480, height = 400, scale = 0.8, name = "Android"},
+        {width = 480, height = 400, scale = 0.8, name = "Small"},
+        {width = 420, height = 350, scale = 0.7, name = "Android"}
     }
 }
 
