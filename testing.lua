@@ -1045,18 +1045,10 @@ sizeToggleButton.MouseButton1Click:Connect(function()
 end)
 
 -- Initialize Size
-local isMobile = Services.UserInputService.TouchEnabled
-
-if isMobile then
-    UISizeManager.currentSizeIndex = 4 -- Android preset
-    sizeToggleButton.Visible = false
-    local newSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
-    frame.Size = UDim2.new(0, newSize.width * scaleFactor, 0, newSize.height * scaleFactor)
-    uiScale.Scale = newSize.scale * scaleFactor
-else
-    UISizeManager.currentSizeIndex = 1 -- Large/default
-    sizeToggleButton.Visible = true
-end
+local initialSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
+frame.Size = UDim2.new(0, initialSize.width * scaleFactor, 0, initialSize.height * scaleFactor)
+uiScale.Scale = initialSize.scale * scaleFactor
+sizeToggleButton.Text = string.sub(initialSize.name, 1, 1)
 
 -- Dragging Logic
 local dragging = false
@@ -2282,44 +2274,17 @@ end
 selectTab("Main")
 
 -- Automatically set to smallest scale on Android
-local isMobile = Services.UserInputService.TouchEnabled
-
--- Quest Dropdown
-local questDropdownFrameHeight = isMobile and (0.5 * scaleFactor) or (0.2 * scaleFactor)
-questDropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, questDropdownFrameHeight, 0)
-questScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
-questLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    questScroll.CanvasSize = UDim2.new(0, 0, 1.5, questLayout.AbsoluteContentSize.Y + (isMobile and 40 or 10) * scaleFactor)
-end)
-
--- Mob Dropdown
-local mobDropdownFrameHeight = isMobile and (0.5 * scaleFactor) or (0.2 * scaleFactor)
-dropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, mobDropdownFrameHeight, 0)
-scrollbar.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
-listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    scrollbar.CanvasSize = UDim2.new(0, 0, 1.5, listLayout.AbsoluteContentSize.Y + (isMobile and 40 or 10) * scaleFactor)
-end)
-
--- Dismantle Dropdown
-local dismantleDropdownFrameHeight = isMobile and (0.5 * scaleFactor) or (0.2 * scaleFactor)
-dismantleDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, dismantleDropdownFrameHeight, 0)
-dismantleScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
-dismantleLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    dismantleScroll.CanvasSize = UDim2.new(0, 0, 0, dismantleLayout.AbsoluteContentSize.Y + (isMobile and 40 or 10) * scaleFactor)
-end)
-
--- Waystone Dropdown
-local waystoneDropdownFrameHeight = isMobile and (0.5 * scaleFactor) or (0.2 * scaleFactor)
-waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, waystoneDropdownFrameHeight, 0)
-waystoneScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
-waystoneLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    waystoneScroll.CanvasSize = UDim2.new(0, 0, 1.5, waystoneLayout.AbsoluteContentSize.Y + (isMobile and 40 or 10) * scaleFactor)
-end)
-
--- Floor Teleport Dropdown
-local floorTeleportDropdownFrameHeight = isMobile and (0.5 * scaleFactor) or (0.2 * scaleFactor)
-floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, floorTeleportDropdownFrameHeight, 0)
-floorTeleportScroll.Size = UDim2.new(1, -10 * scaleFactor, 1, -10 * scaleFactor)
-floorTeleportLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 0.5, floorTeleportLayout.AbsoluteContentSize.Y + (isMobile and 40 or 10) * scaleFactor)
-end)
+if Services.UserInputService.TouchEnabled then
+    UISizeManager.currentSizeIndex = #UISizeManager.sizes
+    local newSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
+    frame.Size = UDim2.new(0, newSize.width * scaleFactor, 0, newSize.height * scaleFactor)
+    uiScale.Scale = newSize.scale * scaleFactor
+    -- Also update dropdown frame scales
+    for _, dropFrame in ipairs(dropdownFrames) do
+        for _, child in ipairs(dropFrame:GetChildren()) do
+            if child:IsA("UIScale") then
+                child.Scale = newSize.scale * scaleFactor
+            end
+        end
+    end
+end
