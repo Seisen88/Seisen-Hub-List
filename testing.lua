@@ -358,13 +358,6 @@ frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
 local uiScale = Instance.new("UIScale", frame)
 uiScale.Scale = scaleFactor
 
--- Add UIScale to all dropdown frames for proper scaling
-local dropdownFrames = {questDropdownFrame, dropdownFrame, dismantleDropdownFrame, waystoneDropdownFrame, floorTeleportDropdownFrame}
-for _, dropFrame in ipairs(dropdownFrames) do
-    local dropScale = Instance.new("UIScale", dropFrame)
-    dropScale.Scale = scaleFactor
-end
-
 -- Drag Handle
 local dragHandle = Instance.new("Frame", frame)
 dragHandle.Size = UDim2.new(1, 0, 0.06 * scaleFactor, 0)
@@ -390,7 +383,7 @@ titleLabel.ZIndex = 11
 
 -- UI Size Management System
 local UISizeManager = {
-    currentSizeIndex = 1, -- Always start at default, user can change with button
+    currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
     sizes = {
         {width = 600, height = 600, scale = 1.0, name = "Large"},
         {width = 540, height = 500, scale = 0.9, name = "Medium"},
@@ -723,7 +716,7 @@ dismantleDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dismantleDropdownFrame = Instance.new("Frame", frame)
 dismantleDropdownFrame.Position = UDim2.new(0.05, 0, 0.26, 0)
-dismantleDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
+dismantleDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
 dismantleDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dismantleDropdownFrame.BorderSizePixel = 0
 dismantleDropdownFrame.Visible = false
@@ -844,7 +837,7 @@ waystoneDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local waystoneDropdownFrame = Instance.new("Frame", frame)
 waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.67, 0)
-waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
+waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
 waystoneDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 waystoneDropdownFrame.BorderSizePixel = 0
 waystoneDropdownFrame.Visible = false
@@ -886,7 +879,7 @@ floorTeleportDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local floorTeleportDropdownFrame = Instance.new("Frame", frame)
 floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.77, 0)
-floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
+floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.5 * scaleFactor, 0)
 floorTeleportDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 floorTeleportDropdownFrame.BorderSizePixel = 0
 floorTeleportDropdownFrame.Visible = false
@@ -1023,6 +1016,33 @@ resizeCursor.BackgroundTransparency = 1
 resizeCursor.Image = "rbxassetid://6022668888"
 resizeCursor.ImageColor3 = Color3.fromRGB(200, 200, 200)
 resizeCursor.ZIndex = 21
+
+-- UI Size Management System
+local UISizeManager = {
+    currentSizeIndex = 1,
+    sizes = {
+        {width = 600, height = 600, scale = 1.0, name = "Large"},
+        {width = 540, height = 500, scale = 0.9, name = "Medium"},
+        {width = 480, height = 400, scale = 0.8, name = "Small"},
+        {width = 420, height = 350, scale = 0.7, name = "Android"}
+    }
+}
+
+-- Create UI Size Toggle Button
+local sizeToggleButton = Instance.new("TextButton", dragHandle)
+sizeToggleButton.Size = UDim2.new(0.08, 0, 0.7, 0) -- smaller and fits drag bar
+sizeToggleButton.AnchorPoint = Vector2.new(1, 0.5)
+sizeToggleButton.Position = UDim2.new(0.98, 0, 0.5, 0) -- right-aligned, vertically centered
+sizeToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+sizeToggleButton.TextColor3 = Color3.new(1, 1, 1)
+sizeToggleButton.Font = Enum.Font.GothamBold
+sizeToggleButton.TextSize = 13
+sizeToggleButton.Text = "L"
+sizeToggleButton.BorderSizePixel = 0
+sizeToggleButton.ZIndex = 25
+
+local sizeButtonCorner = Instance.new("UICorner", sizeToggleButton)
+sizeButtonCorner.CornerRadius = UDim.new(0, 4)
 
 -- Size Toggle Functionality
 sizeToggleButton.MouseButton1Click:Connect(function()
@@ -2272,19 +2292,3 @@ for name, btn in pairs(tabButtons) do
     end)
 end
 selectTab("Main")
-
--- Automatically set to smallest scale on Android
-if Services.UserInputService.TouchEnabled then
-    UISizeManager.currentSizeIndex = #UISizeManager.sizes
-    local newSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
-    frame.Size = UDim2.new(0, newSize.width * scaleFactor, 0, newSize.height * scaleFactor)
-    uiScale.Scale = newSize.scale * scaleFactor
-    -- Also update dropdown frame scales
-    for _, dropFrame in ipairs(dropdownFrames) do
-        for _, child in ipairs(dropFrame:GetChildren()) do
-            if child:IsA("UIScale") then
-                child.Scale = newSize.scale * scaleFactor
-            end
-        end
-    end
-end
