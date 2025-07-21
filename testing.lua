@@ -181,6 +181,10 @@ local RuntimeState = {
     openMountsUIManualEnabled = false,
     openSmithingUIManualEnabled = false,
     
+    -- FPS Boost
+    fpsBoostEnabled = false,
+    maxFpsBoostEnabled = false,
+    
     -- Selection variables
     selectedMobName = "Razor Boar",
     selectedQuestId = nil,
@@ -201,6 +205,51 @@ local RuntimeState = {
     claimedReward = {}
 }
 
+-- CONFIG SAVE/LOAD SYSTEM
+local HttpService = game:GetService("HttpService")
+local CONFIG_FILE = "seisenhub.json"
+
+local function saveConfig()
+    local config = {
+        stopFollowing = RuntimeState.stopFollowing,
+        killAuraEnabled = RuntimeState.killAuraEnabled,
+        autoCollectEnabled = RuntimeState.autoCollectEnabled,
+        autoSkillEnabled = RuntimeState.autoSkillEnabled,
+        autoClaimEnabled = RuntimeState.autoClaimEnabled,
+        autoDismantleEnabled = RuntimeState.autoDismantleEnabled,
+        autoDailyQuestsEnabled = RuntimeState.autoDailyQuestsEnabled,
+        autoAchievementEnabled = RuntimeState.autoAchievementEnabled,
+        openEnchantUIManualEnabled = RuntimeState.openEnchantUIManualEnabled,
+        openMountsUIManualEnabled = RuntimeState.openMountsUIManualEnabled,
+        openSmithingUIManualEnabled = RuntimeState.openSmithingUIManualEnabled,
+        fpsBoostEnabled = RuntimeState.fpsBoostEnabled,
+        maxFpsBoostEnabled = RuntimeState.maxFpsBoostEnabled,
+        selectedMobName = RuntimeState.selectedMobName,
+        selectedQuestId = RuntimeState.selectedQuestId,
+        selectedRarity = RuntimeState.selectedRarity,
+        global_isEnabled_autoquest = RuntimeState.global_isEnabled_autoquest,
+    }
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(config))
+    end)
+end
+
+local function loadConfig()
+    if not (isfile and isfile(CONFIG_FILE)) then return end
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(CONFIG_FILE))
+    end)
+    if success and type(data) == "table" then
+        for k, v in pairs(data) do
+            if RuntimeState[k] ~= nil then
+                RuntimeState[k] = v
+            end
+        end
+    end
+end
+
+loadConfig()
+
 -- RARITY SYSTEM
 local RaritySystem = {
     map = {
@@ -214,7 +263,7 @@ local RaritySystem = {
     currentIndex = 2
 }
 
--- QUEST SYSTEM
+-- Fix: Define QuestSystem before using it
 local QuestSystem = {
     toMobMap = {}
 }
@@ -296,7 +345,7 @@ mainScreenGui.Parent = game:GetService("CoreGui")
 
 -- Create main frame with scaled size
 local frame = Instance.new("Frame", mainScreenGui)
-frame.Size = UDim2.new(0, 440 * scaleFactor, 0, 1000 * scaleFactor)
+frame.Size = UDim2.new(0, 600 * scaleFactor, 0, 1000 * scaleFactor)
 frame.Position = UDim2.new(0.02, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.2
@@ -308,6 +357,13 @@ frameCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
 -- Apply UIScale for dynamic resizing
 local uiScale = Instance.new("UIScale", frame)
 uiScale.Scale = scaleFactor
+
+-- Add UIScale to all dropdown frames for proper scaling
+local dropdownFrames = {questDropdownFrame, dropdownFrame, dismantleDropdownFrame, waystoneDropdownFrame, floorTeleportDropdownFrame}
+for _, dropFrame in ipairs(dropdownFrames) do
+    local dropScale = Instance.new("UIScale", dropFrame)
+    dropScale.Scale = scaleFactor
+end
 
 -- Drag Handle
 local dragHandle = Instance.new("Frame", frame)
@@ -336,10 +392,10 @@ titleLabel.ZIndex = 11
 local UISizeManager = {
     currentSizeIndex = Services.UserInputService.TouchEnabled and 4 or 1, -- Android or PC
     sizes = {
-        {width = 440, height = 850, scale = 1.0, name = "Large"},
-        {width = 400, height = 830, scale = 0.9, name = "Medium"},
-        {width = 360, height = 810, scale = 0.8, name = "Small"},
-        {width = 340, height = 720, scale = 0.7, name = "Android"} -- Larger for Android
+        {width = 600, height = 600, scale = 1.0, name = "Large"},
+        {width = 540, height = 500, scale = 0.9, name = "Medium"},
+        {width = 480, height = 400, scale = 0.8, name = "Small"},
+        {width = 420, height = 350, scale = 0.7, name = "Android"}
     }
 }
 
@@ -360,19 +416,19 @@ sizeButtonCorner.CornerRadius = UDim.new(0, 4 * scaleFactor)
 
 -- Auto Farm Checkbox
 local followLabel = Instance.new("TextLabel", frame)
-followLabel.Size = UDim2.new(0, 20 * scaleFactor, 0, 20 * scaleFactor)
-followLabel.Position = UDim2.new(0.05, 0, 0.07, 0)
+followLabel.Size = UDim2.new(0, 16 * scaleFactor, 0, 16 * scaleFactor)
+followLabel.Position = UDim2.new(0.05, 0, 0.11, 0)
 followLabel.Text = "Auto Farm: OFF"
 followLabel.TextColor3 = Color3.new(1, 1, 1)
 followLabel.BackgroundTransparency = 1
 followLabel.Font = Enum.Font.GothamBold
-followLabel.TextSize = 18 * scaleFactor
+followLabel.TextSize = 14 * scaleFactor
 followLabel.TextXAlignment = Enum.TextXAlignment.Left
 followLabel.ZIndex = 11
 
 local followCheckbox = Instance.new("TextButton", frame)
 followCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-followCheckbox.Position = UDim2.new(0.9, 0, 0.07, 0)
+followCheckbox.Position = UDim2.new(0.9, 0, 0.11, 0)
 followCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 followCheckbox.Text = ""
 followCheckbox.AutoButtonColor = false
@@ -383,18 +439,18 @@ Instance.new("UICorner", followCheckbox).CornerRadius = UDim.new(1, 0)
 -- Kill Aura Checkbox
 local killAuraLabel = Instance.new("TextLabel", frame)
 killAuraLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-killAuraLabel.Position = UDim2.new(0.05, 0, 0.10, 0)
+killAuraLabel.Position = UDim2.new(0.05, 0, 0.19, 0)
 killAuraLabel.Text = "Kill Aura: OFF"
 killAuraLabel.TextColor3 = Color3.new(1, 1, 1)
 killAuraLabel.BackgroundTransparency = 1
 killAuraLabel.Font = Enum.Font.GothamBold
-killAuraLabel.TextSize = 18 * scaleFactor
+killAuraLabel.TextSize = 14 * scaleFactor
 killAuraLabel.TextXAlignment = Enum.TextXAlignment.Left
 killAuraLabel.ZIndex = 11
 
 local killAuraCheckbox = Instance.new("TextButton", frame)
 killAuraCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-killAuraCheckbox.Position = UDim2.new(0.9, 0, 0.115, 0)
+killAuraCheckbox.Position = UDim2.new(0.9, 0, 0.19, 0)
 killAuraCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 killAuraCheckbox.Text = ""
 killAuraCheckbox.AutoButtonColor = false
@@ -405,18 +461,18 @@ Instance.new("UICorner", killAuraCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Quest Checkbox
 local autoQuestLabel = Instance.new("TextLabel", frame)
 autoQuestLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoQuestLabel.Position = UDim2.new(0.05, 0, 0.15, 0)
+autoQuestLabel.Position = UDim2.new(0.05, 0, 0.27, 0)
 autoQuestLabel.Text = "Auto Quest: OFF (Pick quest below)"
 autoQuestLabel.TextColor3 = Color3.new(1, 1, 1)
 autoQuestLabel.BackgroundTransparency = 1
 autoQuestLabel.Font = Enum.Font.GothamBold
-autoQuestLabel.TextSize = 18 * scaleFactor
+autoQuestLabel.TextSize = 14 * scaleFactor
 autoQuestLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoQuestLabel.ZIndex = 11
 
 local autoQuestCheckbox = Instance.new("TextButton", frame)
 autoQuestCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoQuestCheckbox.Position = UDim2.new(0.9, 0, 0.16, 0)
+autoQuestCheckbox.Position = UDim2.new(0.9, 0, 0.27, 0)
 autoQuestCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoQuestCheckbox.Text = ""
 autoQuestCheckbox.AutoButtonColor = false
@@ -427,18 +483,18 @@ Instance.new("UICorner", autoQuestCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Collect Checkbox
 local autoCollectLabel = Instance.new("TextLabel", frame)
 autoCollectLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoCollectLabel.Position = UDim2.new(0.05, 0, 0.2, 0)
+autoCollectLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
 autoCollectLabel.Text = "Auto Collect: ON"
 autoCollectLabel.TextColor3 = Color3.new(1, 1, 1)
 autoCollectLabel.BackgroundTransparency = 1
 autoCollectLabel.Font = Enum.Font.GothamBold
-autoCollectLabel.TextSize = 18 * scaleFactor
+autoCollectLabel.TextSize = 14 * scaleFactor
 autoCollectLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoCollectLabel.ZIndex = 11
 
 local autoCollectCheckbox = Instance.new("TextButton", frame)
 autoCollectCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoCollectCheckbox.Position = UDim2.new(0.9, 0, 0.21, 0)
+autoCollectCheckbox.Position = UDim2.new(0.9, 0, 0.35, 0)
 autoCollectCheckbox.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
 autoCollectCheckbox.Text = ""
 autoCollectCheckbox.AutoButtonColor = false
@@ -449,18 +505,18 @@ Instance.new("UICorner", autoCollectCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Skill Checkbox
 local autoSkillLabel = Instance.new("TextLabel", frame)
 autoSkillLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoSkillLabel.Position = UDim2.new(0.05, 0, 0.25, 0)
+autoSkillLabel.Position = UDim2.new(0.05, 0, 0.43, 0)
 autoSkillLabel.Text = "Auto Skill: OFF"
 autoSkillLabel.TextColor3 = Color3.new(1, 1, 1)
 autoSkillLabel.BackgroundTransparency = 1
 autoSkillLabel.Font = Enum.Font.GothamBold
-autoSkillLabel.TextSize = 18 * scaleFactor
+autoSkillLabel.TextSize = 14 * scaleFactor
 autoSkillLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoSkillLabel.ZIndex = 11
 
 local autoSkillCheckbox = Instance.new("TextButton", frame)
 autoSkillCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoSkillCheckbox.Position = UDim2.new(0.9, 0, 0.26, 0)
+autoSkillCheckbox.Position = UDim2.new(0.9, 0, 0.43, 0)
 autoSkillCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoSkillCheckbox.Text = ""
 autoSkillCheckbox.AutoButtonColor = false
@@ -471,18 +527,18 @@ Instance.new("UICorner", autoSkillCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Claim Checkbox
 local autoClaimLabel = Instance.new("TextLabel", frame)
 autoClaimLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoClaimLabel.Position = UDim2.new(0.05, 0, 0.3, 0)
+autoClaimLabel.Position = UDim2.new(0.05, 0, 0.51, 0)
 autoClaimLabel.Text = "Auto Claim Chest: ON (Click 'Take')"
 autoClaimLabel.TextColor3 = Color3.new(1, 1, 1)
 autoClaimLabel.BackgroundTransparency = 1
 autoClaimLabel.Font = Enum.Font.GothamBold
-autoClaimLabel.TextSize = 18 * scaleFactor
+autoClaimLabel.TextSize = 14 * scaleFactor
 autoClaimLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoClaimLabel.ZIndex = 11
 
 local autoClaimCheckbox = Instance.new("TextButton", frame)
 autoClaimCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoClaimCheckbox.Position = UDim2.new(0.9, 0, 0.31, 0)
+autoClaimCheckbox.Position = UDim2.new(0.9, 0, 0.51, 0)
 autoClaimCheckbox.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
 autoClaimCheckbox.Text = ""
 autoClaimCheckbox.AutoButtonColor = false
@@ -493,18 +549,18 @@ Instance.new("UICorner", autoClaimCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Daily Quests Checkbox
 local autoDailyQuestsLabel = Instance.new("TextLabel", frame)
 autoDailyQuestsLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoDailyQuestsLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
+autoDailyQuestsLabel.Position = UDim2.new(0.05, 0, 0.59, 0)
 autoDailyQuestsLabel.Text = "Auto Claim Daily Quests: OFF"
 autoDailyQuestsLabel.TextColor3 = Color3.new(1, 1, 1)
 autoDailyQuestsLabel.BackgroundTransparency = 1
 autoDailyQuestsLabel.Font = Enum.Font.GothamBold
-autoDailyQuestsLabel.TextSize = 18 * scaleFactor
+autoDailyQuestsLabel.TextSize = 14 * scaleFactor
 autoDailyQuestsLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoDailyQuestsLabel.ZIndex = 11
 
 local autoDailyQuestsCheckbox = Instance.new("TextButton", frame)
 autoDailyQuestsCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoDailyQuestsCheckbox.Position = UDim2.new(0.9, 0, 0.36, 0)
+autoDailyQuestsCheckbox.Position = UDim2.new(0.9, 0, 0.59, 0)
 autoDailyQuestsCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoDailyQuestsCheckbox.Text = ""
 autoDailyQuestsCheckbox.AutoButtonColor = false
@@ -515,18 +571,18 @@ Instance.new("UICorner", autoDailyQuestsCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Achievement Checkbox
 local autoAchievementLabel = Instance.new("TextLabel", frame)
 autoAchievementLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoAchievementLabel.Position = UDim2.new(0.05, 0, 0.4, 0)
+autoAchievementLabel.Position = UDim2.new(0.05, 0, 0.67, 0)
 autoAchievementLabel.Text = "Auto Claim Achievement: OFF"
 autoAchievementLabel.TextColor3 = Color3.new(1, 1, 1)
 autoAchievementLabel.BackgroundTransparency = 1
 autoAchievementLabel.Font = Enum.Font.GothamBold
-autoAchievementLabel.TextSize = 18 * scaleFactor
+autoAchievementLabel.TextSize = 14 * scaleFactor
 autoAchievementLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoAchievementLabel.ZIndex = 11
 
 local autoAchievementCheckbox = Instance.new("TextButton", frame)
 autoAchievementCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoAchievementCheckbox.Position = UDim2.new(0.9, 0, 0.41, 0)
+autoAchievementCheckbox.Position = UDim2.new(0.9, 0, 0.67, 0)
 autoAchievementCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoAchievementCheckbox.Text = ""
 autoAchievementCheckbox.AutoButtonColor = false
@@ -537,31 +593,31 @@ Instance.new("UICorner", autoAchievementCheckbox).CornerRadius = UDim.new(1, 0)
 -- Dropdown Title
 local dropdownTitleLabel = Instance.new("TextLabel", frame)
 dropdownTitleLabel.Size = UDim2.new(1, 0, 0.05 * scaleFactor, 0)
-dropdownTitleLabel.Position = UDim2.new(0, 0, 0.435, 0)
+dropdownTitleLabel.Position = UDim2.new(0, 0, 0.75 , 0)
 dropdownTitleLabel.Text = "Select Quest and Mob"
 dropdownTitleLabel.TextColor3 = Color3.new(1, 1, 1)
 dropdownTitleLabel.BackgroundTransparency = 1
 dropdownTitleLabel.Font = Enum.Font.GothamBold
-dropdownTitleLabel.TextSize = 18 * scaleFactor
+dropdownTitleLabel.TextSize = 14 * scaleFactor
 dropdownTitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 dropdownTitleLabel.ZIndex = 11
 
 -- Quest Dropdown
 local questDropdown = Instance.new("TextButton", frame)
-questDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.06 * scaleFactor, 0)
-questDropdown.Position = UDim2.new(0.05, 0, 0.48, 0)
+questDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+questDropdown.Position = UDim2.new(0.05, 0, 0.80, 0)
 questDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 questDropdown.TextColor3 = Color3.new(1, 1, 1)
 questDropdown.Font = Enum.Font.Gotham
-questDropdown.TextSize = 18 * scaleFactor
+questDropdown.TextSize = 14 * scaleFactor
 questDropdown.Text = "Quest: (None)"
 questDropdown.ZIndex = 14
 local questDropdownCorner = Instance.new("UICorner", questDropdown)
 questDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local questDropdownFrame = Instance.new("Frame", frame)
-questDropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.2 * scaleFactor, 0)
-questDropdownFrame.Position = UDim2.new(0.05, 0, 0.54, 0)
+questDropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.4 * scaleFactor, 0)
+questDropdownFrame.Position = UDim2.new(0.05, 0, 0.90, 0)
 questDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 questDropdownFrame.BorderSizePixel = 0
 questDropdownFrame.Visible = false
@@ -590,20 +646,20 @@ end)
 
 -- Mob Dropdown
 local mobDropdown = Instance.new("TextButton", frame)
-mobDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.06 * scaleFactor, 0)
-mobDropdown.Position = UDim2.new(0.5, 0, 0.48, 0)
+mobDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+mobDropdown.Position = UDim2.new(0.5, 0, 0.80, 0)
 mobDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mobDropdown.TextColor3 = Color3.new(1, 1, 1)
 mobDropdown.Font = Enum.Font.Gotham
-mobDropdown.TextSize = 18 * scaleFactor
+mobDropdown.TextSize = 14 * scaleFactor
 mobDropdown.Text = "Mob: Razor Boar"
 mobDropdown.ZIndex = 14
 local mobDropdownCorner = Instance.new("UICorner", mobDropdown)
 mobDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dropdownFrame = Instance.new("Frame", frame)
-dropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.2 * scaleFactor, 0)
-dropdownFrame.Position = UDim2.new(0.5, 0, 0.54, 0)
+dropdownFrame.Size = UDim2.new(0.43 * scaleFactor, 0, 0.4 * scaleFactor, 0)
+dropdownFrame.Position = UDim2.new(0.5, 0, 0.90, 0)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dropdownFrame.BorderSizePixel = 0
 dropdownFrame.Visible = false
@@ -633,18 +689,18 @@ end)
 -- Auto Dismantle Checkbox
 local autoDismantleLabel = Instance.new("TextLabel", frame)
 autoDismantleLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoDismantleLabel.Position = UDim2.new(0.05, 0, 0.54, 0)
+autoDismantleLabel.Position = UDim2.new(0.05, 0, 0.11, 0)
 autoDismantleLabel.Text = "Auto Dismantle: OFF"
 autoDismantleLabel.TextColor3 = Color3.new(1, 1, 1)
 autoDismantleLabel.BackgroundTransparency = 1
 autoDismantleLabel.Font = Enum.Font.GothamBold
-autoDismantleLabel.TextSize = 18 * scaleFactor
+autoDismantleLabel.TextSize = 14 * scaleFactor
 autoDismantleLabel.TextXAlignment = Enum.TextXAlignment.Left
 autoDismantleLabel.ZIndex = 11
 
 local autoDismantleCheckbox = Instance.new("TextButton", frame)
 autoDismantleCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoDismantleCheckbox.Position = UDim2.new(0.9, 0, 0.55, 0)
+autoDismantleCheckbox.Position = UDim2.new(0.9, 0, 0.11, 0)
 autoDismantleCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoDismantleCheckbox.Text = ""
 autoDismantleCheckbox.AutoButtonColor = false
@@ -654,19 +710,19 @@ Instance.new("UICorner", autoDismantleCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Auto Dismantle Dropdown
 local dismantleDropdown = Instance.new("TextButton", frame)
-dismantleDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
-dismantleDropdown.Position = UDim2.new(0.05, 0, 0.59, 0)
+dismantleDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+dismantleDropdown.Position = UDim2.new(0.05, 0, 0.17, 0)
 dismantleDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dismantleDropdown.TextColor3 = Color3.new(1, 1, 1)
 dismantleDropdown.Font = Enum.Font.Gotham
-dismantleDropdown.TextSize = 18 * scaleFactor
+dismantleDropdown.TextSize = 14 * scaleFactor
 dismantleDropdown.Text = "Rarity: Uncommon and below"
 dismantleDropdown.ZIndex = 12
 local dismantleDropdownCorner = Instance.new("UICorner", dismantleDropdown)
 dismantleDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dismantleDropdownFrame = Instance.new("Frame", frame)
-dismantleDropdownFrame.Position = UDim2.new(0.05, 0, 0.64, 0)
+dismantleDropdownFrame.Position = UDim2.new(0.05, 0, 0.26, 0)
 dismantleDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 dismantleDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dismantleDropdownFrame.BorderSizePixel = 0
@@ -697,18 +753,18 @@ end)
 -- Open Enchant UI Checkbox
 local openEnchantUIManualLabel = Instance.new("TextLabel", frame)
 openEnchantUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-openEnchantUIManualLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
+openEnchantUIManualLabel.Position = UDim2.new(0.05, 0, 0.27, 0)
 openEnchantUIManualLabel.Text = "Open Enchant UI: OFF"
 openEnchantUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
 openEnchantUIManualLabel.BackgroundTransparency = 1
 openEnchantUIManualLabel.Font = Enum.Font.GothamBold
-openEnchantUIManualLabel.TextSize = 18 * scaleFactor
+openEnchantUIManualLabel.TextSize = 14 * scaleFactor
 openEnchantUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openEnchantUIManualLabel.ZIndex = 11
 
 local openEnchantUIManualCheckbox = Instance.new("TextButton", frame)
 openEnchantUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-openEnchantUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.66, 0)
+openEnchantUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.27, 0)
 openEnchantUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openEnchantUIManualCheckbox.Text = ""
 openEnchantUIManualCheckbox.AutoButtonColor = false
@@ -719,18 +775,18 @@ Instance.new("UICorner", openEnchantUIManualCheckbox).CornerRadius = UDim.new(1,
 -- Open Mounts UI Checkbox
 local openMountsUIManualLabel = Instance.new("TextLabel", frame)
 openMountsUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-openMountsUIManualLabel.Position = UDim2.new(0.05, 0, 0.69, 0)
+openMountsUIManualLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
 openMountsUIManualLabel.Text = "Open Mounts UI: OFF"
 openMountsUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
 openMountsUIManualLabel.BackgroundTransparency = 1
 openMountsUIManualLabel.Font = Enum.Font.GothamBold
-openMountsUIManualLabel.TextSize = 18 * scaleFactor
+openMountsUIManualLabel.TextSize = 14 * scaleFactor
 openMountsUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openMountsUIManualLabel.ZIndex = 11
 
 local openMountsUIManualCheckbox = Instance.new("TextButton", frame)
 openMountsUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-openMountsUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.70, 0)
+openMountsUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.35, 0)
 openMountsUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openMountsUIManualCheckbox.Text = ""
 openMountsUIManualCheckbox.AutoButtonColor = false
@@ -741,18 +797,18 @@ Instance.new("UICorner", openMountsUIManualCheckbox).CornerRadius = UDim.new(1, 
 -- Open Smithing UI Checkbox
 local openSmithingUIManualLabel = Instance.new("TextLabel", frame)
 openSmithingUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-openSmithingUIManualLabel.Position = UDim2.new(0.05, 0, 0.73, 0)
+openSmithingUIManualLabel.Position = UDim2.new(0.05, 0, 0.43, 0)
 openSmithingUIManualLabel.Text = "Open Smithing UI: OFF"
 openSmithingUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
 openSmithingUIManualLabel.BackgroundTransparency = 1
 openSmithingUIManualLabel.Font = Enum.Font.GothamBold
-openSmithingUIManualLabel.TextSize = 18 * scaleFactor
+openSmithingUIManualLabel.TextSize = 14 * scaleFactor
 openSmithingUIManualLabel.TextXAlignment = Enum.TextXAlignment.Left
 openSmithingUIManualLabel.ZIndex = 11
 
 local openSmithingUIManualCheckbox = Instance.new("TextButton", frame)
 openSmithingUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-openSmithingUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.74, 0)
+openSmithingUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.43, 0)
 openSmithingUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openSmithingUIManualCheckbox.Text = ""
 openSmithingUIManualCheckbox.AutoButtonColor = false
@@ -762,12 +818,12 @@ Instance.new("UICorner", openSmithingUIManualCheckbox).CornerRadius = UDim.new(1
 
 -- Unlock All Waystones Button
 local unlockWaystonesButton = Instance.new("TextButton", frame)
-unlockWaystonesButton.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
-unlockWaystonesButton.Position = UDim2.new(0.05, 0, 0.785, 0)
+unlockWaystonesButton.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+unlockWaystonesButton.Position = UDim2.new(0.05, 0, 0.50, 0)
 unlockWaystonesButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 unlockWaystonesButton.TextColor3 = Color3.new(1, 1, 1)
 unlockWaystonesButton.Font = Enum.Font.Gotham
-unlockWaystonesButton.TextSize = 18 * scaleFactor
+unlockWaystonesButton.TextSize = 14 * scaleFactor
 unlockWaystonesButton.Text = "Unlock All Waystones"
 unlockWaystonesButton.ZIndex = 12
 local unlockWaystonesButtonCorner = Instance.new("UICorner", unlockWaystonesButton)
@@ -775,19 +831,19 @@ unlockWaystonesButtonCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 -- Waystone Dropdown
 local waystoneDropdown = Instance.new("TextButton", frame)
-waystoneDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
-waystoneDropdown.Position = UDim2.new(0.05, 0, 0.85, 0)
+waystoneDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+waystoneDropdown.Position = UDim2.new(0.05, 0, 0.60, 0)
 waystoneDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 waystoneDropdown.TextColor3 = Color3.new(1, 1, 1)
 waystoneDropdown.Font = Enum.Font.Gotham
-waystoneDropdown.TextSize = 18 * scaleFactor
+waystoneDropdown.TextSize = 14 * scaleFactor
 waystoneDropdown.Text = "Waystone: Choose..."
 waystoneDropdown.ZIndex = 12
 local waystoneDropdownCorner = Instance.new("UICorner", waystoneDropdown)
 waystoneDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local waystoneDropdownFrame = Instance.new("Frame", frame)
-waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.90, 0)
+waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.67, 0)
 waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 waystoneDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 waystoneDropdownFrame.BorderSizePixel = 0
@@ -817,19 +873,19 @@ end)
 
 -- Floor Teleport Dropdown
 local floorTeleportDropdown = Instance.new("TextButton", frame)
-floorTeleportDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.06 * scaleFactor, 0)
-floorTeleportDropdown.Position = UDim2.new(0.05, 0, 0.915, 0)
+floorTeleportDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+floorTeleportDropdown.Position = UDim2.new(0.05, 0, 0.70, 0)
 floorTeleportDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 floorTeleportDropdown.TextColor3 = Color3.new(1, 1, 1)
 floorTeleportDropdown.Font = Enum.Font.Gotham
-floorTeleportDropdown.TextSize = 18 * scaleFactor
+floorTeleportDropdown.TextSize = 14 * scaleFactor
 floorTeleportDropdown.Text = "Teleport: Select Floor..."
 floorTeleportDropdown.ZIndex = 12
 local floorTeleportDropdownCorner = Instance.new("UICorner", floorTeleportDropdown)
 floorTeleportDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local floorTeleportDropdownFrame = Instance.new("Frame", frame)
-floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.97, 0)
+floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.77, 0)
 floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.2 * scaleFactor, 0)
 floorTeleportDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 floorTeleportDropdownFrame.BorderSizePixel = 0
@@ -856,6 +912,28 @@ floorTeleportLayout.Padding = UDim.new(0, 5 * scaleFactor)
 floorTeleportLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 0.5, floorTeleportLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
+
+-- FPS Boost Checkbox
+local fpsBoostLabel = Instance.new("TextLabel", frame)
+fpsBoostLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
+fpsBoostLabel.Position = UDim2.new(0.05, 0, 0.80, 0)
+fpsBoostLabel.Text = "FPS Boost: OFF"
+fpsBoostLabel.TextColor3 = Color3.new(1, 1, 1)
+fpsBoostLabel.BackgroundTransparency = 1
+fpsBoostLabel.Font = Enum.Font.GothamBold
+fpsBoostLabel.TextSize = 14 * scaleFactor
+fpsBoostLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsBoostLabel.ZIndex = 11
+
+local fpsBoostCheckbox = Instance.new("TextButton", frame)
+fpsBoostCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
+fpsBoostCheckbox.Position = UDim2.new(0.9, 0, 0.80, 0)
+fpsBoostCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+fpsBoostCheckbox.Text = ""
+fpsBoostCheckbox.AutoButtonColor = false
+fpsBoostCheckbox.ZIndex = 12
+Instance.new("UIAspectRatioConstraint", fpsBoostCheckbox).AspectRatio = 1
+Instance.new("UICorner", fpsBoostCheckbox).CornerRadius = UDim.new(1, 0)
 
 -- Floor Teleport logic
 local teleportFloorEvent = Services.ReplicatedStorage:WaitForChild("Systems", 9e9):WaitForChild("Teleport", 9e9):WaitForChild("Teleport", 9e9)
@@ -950,10 +1028,10 @@ resizeCursor.ZIndex = 21
 local UISizeManager = {
     currentSizeIndex = 1,
     sizes = {
-        {width = 440, height = 850, scale = 0.8, name = "Large"},
-        {width = 400, height = 830, scale = 0.7, name = "Medium"},
-        {width = 360, height = 810, scale = 0.6, name = "Small"},
-        {width = 320, height = 790, scale = 0.5, name = "Tiny"}
+        {width = 600, height = 600, scale = 1.0, name = "Large"},
+        {width = 540, height = 500, scale = 0.9, name = "Medium"},
+        {width = 480, height = 400, scale = 0.8, name = "Small"},
+        {width = 420, height = 350, scale = 0.7, name = "Android"}
     }
 }
 
@@ -1119,6 +1197,120 @@ local function updateOpenSmithingUIManualCheckboxUI()
     openSmithingUIManualLabel.Text = RuntimeState.openSmithingUIManualEnabled and "Open Smithing UI: ON" or "Open Smithing UI: OFF"
 end
 
+
+-- FPS Boost logic
+local originalMaterials = {}
+local originalCastShadows = {}
+local function setAllToSmoothPlastic()
+    for _, obj in ipairs(Services.Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            if not originalMaterials[obj] then
+                originalMaterials[obj] = obj.Material
+            end
+            obj.Material = Enum.Material.SmoothPlastic
+        end
+    end
+end
+local function restoreAllMaterials()
+    for obj, mat in pairs(originalMaterials) do
+        if obj and obj:IsA("BasePart") then
+            obj.Material = mat
+        end
+    end
+    originalMaterials = {}
+end
+
+local function setAllCastShadowOff()
+    for _, obj in ipairs(Services.Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            if originalCastShadows[obj] == nil then
+                originalCastShadows[obj] = obj.CastShadow
+            end
+            obj.CastShadow = false
+        end
+    end
+end
+local function restoreAllCastShadows()
+    for obj, val in pairs(originalCastShadows) do
+        if obj and obj:IsA("BasePart") then
+            obj.CastShadow = val
+        end
+    end
+    originalCastShadows = {}
+end
+
+local function removeVisualClutter()
+    for _, obj in ipairs(Services.Workspace:GetDescendants()) do
+        if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("SurfaceGui") then
+            obj:Destroy()
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
+            obj.Enabled = false
+        end
+    end
+end
+local function restoreVisualClutter() end -- Not reversible, so do nothing
+
+local function updateFPSBoostCheckboxUI()
+    if RuntimeState.maxFpsBoostEnabled then
+        fpsBoostCheckbox.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+        fpsBoostLabel.Text = "Max FPS Boost: ON"
+    elseif RuntimeState.fpsBoostEnabled then
+        fpsBoostCheckbox.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+        fpsBoostLabel.Text = "FPS Boost: ON"
+    else
+        fpsBoostCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        fpsBoostLabel.Text = "FPS Boost: OFF"
+    end
+end
+
+fpsBoostCheckbox.MouseButton1Click:Connect(function()
+    if RuntimeState.maxFpsBoostEnabled then
+        -- If max is on, turn both off
+        RuntimeState.maxFpsBoostEnabled = false
+        RuntimeState.fpsBoostEnabled = false
+        restoreAllMaterials()
+        restoreAllCastShadows()
+        -- Can't restore decals/textures
+    elseif not RuntimeState.fpsBoostEnabled then
+        -- Turn on normal FPS boost
+        RuntimeState.fpsBoostEnabled = true
+        setAllToSmoothPlastic()
+    else
+        -- Turn off normal FPS boost
+        RuntimeState.fpsBoostEnabled = false
+        restoreAllMaterials()
+    end
+    updateFPSBoostCheckboxUI()
+    saveConfig()
+end)
+
+fpsBoostCheckbox.MouseButton2Click:Connect(function()
+    -- Right click for Max FPS Boost
+    if not RuntimeState.maxFpsBoostEnabled then
+        RuntimeState.maxFpsBoostEnabled = true
+        RuntimeState.fpsBoostEnabled = false
+        setAllToSmoothPlastic()
+        setAllCastShadowOff()
+        removeVisualClutter()
+    else
+        RuntimeState.maxFpsBoostEnabled = false
+        restoreAllMaterials()
+        restoreAllCastShadows()
+        -- Can't restore decals/textures
+    end
+    updateFPSBoostCheckboxUI()
+    saveConfig()
+end)
+
+-- On load, apply FPS boost if enabled
+if RuntimeState.maxFpsBoostEnabled then
+    setAllToSmoothPlastic()
+    setAllCastShadowOff()
+    removeVisualClutter()
+elseif RuntimeState.fpsBoostEnabled then
+    setAllToSmoothPlastic()
+end
+
 -- Auto Dismantle Function
 local function AutoDismantleByMaxRarity(maxRarityIndex)
     for _, item in ipairs(PlayerData.inventory:GetChildren()) do
@@ -1162,6 +1354,11 @@ dismantleDropdown.MouseButton1Click:Connect(function()
         optionCorner.CornerRadius = UDim.new(0, 4)
         option.Parent = dismantleScroll
 
+        -- Highlight if selected
+        if rarity == RuntimeState.selectedRarity then
+            option.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+        end
+
         option.MouseButton1Click:Connect(function()
             RaritySystem.currentIndex = i
             RuntimeState.selectedRarity = RaritySystem.list[RaritySystem.currentIndex]
@@ -1173,13 +1370,18 @@ dismantleDropdown.MouseButton1Click:Connect(function()
             if RuntimeState.autoDismantleEnabled then
                 AutoDismantleByMaxRarity(RaritySystem.map[RuntimeState.selectedRarity])
             end
+            saveConfig()
         end)
 
         option.MouseEnter:Connect(function()
             Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
         end)
         option.MouseLeave:Connect(function()
-            Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            if rarity == RuntimeState.selectedRarity then
+                Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 255, 60)}):Play()
+            else
+                Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            end
         end)
     end
 end)
@@ -1191,19 +1393,22 @@ autoDismantleCheckbox.MouseButton1Click:Connect(function()
     if RuntimeState.autoDismantleEnabled then
         AutoDismantleByMaxRarity(RaritySystem.map[RuntimeState.selectedRarity])
     end
+    saveConfig()
 end)
 
 -- Function to open chest and claim reward
 local function openAndClaimChest(chestModel)
+    print("[AutoClaim] Trying to claim chest:", chestModel.Name)
     local root = chestModel:FindFirstChild("RootPart")
-    if not root then return end
+    if not root then print("[AutoClaim] No RootPart") return end
 
-    local prompt = root:FindFirstChildWhichIsA("ProximityPrompt")
-    if not prompt then return end
+    local prompt = root:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if not prompt then print("[AutoClaim] No ProximityPrompt") return end
 
     prompt.MaxActivationDistance = RuntimeState.autoClaimEnabled and 500 or 10
 
     local dist = (PlayerData.hrp.Position - root.Position).Magnitude
+    print("[AutoClaim] Distance to chest:", dist)
     if dist <= CONFIG.TRIGGER_DISTANCE then
         pcall(function()
             prompt:InputHoldBegin()
@@ -1212,6 +1417,7 @@ local function openAndClaimChest(chestModel)
         end)
 
         task.delay(2.5, function()
+            print("[AutoClaim] Firing Remotes.chest:FireServer")
             pcall(function()
                 Remotes.chest:FireServer(chestModel)
             end)
@@ -1283,6 +1489,11 @@ questDropdown.MouseButton1Click:Connect(function()
         btnCorner.CornerRadius = UDim.new(0, 4)
         btn.Parent = questScroll
 
+        -- Highlight if selected
+        if tonumber(id) == tonumber(RuntimeState.selectedQuestId) then
+            btn.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+        end
+
         btn.MouseButton1Click:Connect(function()
             RuntimeState.selectedQuestId = tonumber(id)
             local success, err = pcall(function()
@@ -1298,13 +1509,18 @@ questDropdown.MouseButton1Click:Connect(function()
             for _, child in ipairs(questScroll:GetChildren()) do
                 if child:IsA("TextButton") then child:Destroy() end
             end
+            saveConfig()
         end)
 
         btn.MouseEnter:Connect(function()
             Services.TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
         end)
         btn.MouseLeave:Connect(function()
-            Services.TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            if tonumber(id) == tonumber(RuntimeState.selectedQuestId) then
+                Services.TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 255, 60)}):Play()
+            else
+                Services.TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            end
         end)
     end
 end)
@@ -1343,6 +1559,11 @@ mobDropdown.MouseButton1Click:Connect(function()
             optionCorner.CornerRadius = UDim.new(0, 4)
             option.Parent = scrollbar
 
+            -- Highlight if selected
+            if mob.Name == RuntimeState.selectedMobName then
+                option.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+            end
+
             option.MouseButton1Click:Connect(function()
                 RuntimeState.selectedMobName = mob.Name
                 mobDropdown.Text = "Mob: " .. mob.Name
@@ -1350,13 +1571,18 @@ mobDropdown.MouseButton1Click:Connect(function()
                 for _, child in pairs(scrollbar:GetChildren()) do
                     if child:IsA("TextButton") then child:Destroy() end
                 end
+                saveConfig()
             end)
 
             option.MouseEnter:Connect(function()
                 Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
             end)
             option.MouseLeave:Connect(function()
-                Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+                if mob.Name == RuntimeState.selectedMobName then
+                    Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 255, 60)}):Play()
+                else
+                    Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+                end
             end)
         end
     end
@@ -1593,42 +1819,49 @@ followCheckbox.MouseButton1Click:Connect(function()
     else
         stopFollowingNow()
     end
+    saveConfig()
 end)
 
 -- Kill Aura Checkbox toggle
 killAuraCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.killAuraEnabled = not RuntimeState.killAuraEnabled
     updateKillAuraCheckboxUI()
+    saveConfig()
 end)
 
 -- Auto Quest Checkbox toggle
 autoQuestCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.global_isEnabled_autoquest = not RuntimeState.global_isEnabled_autoquest
     updateAutoQuestCheckboxUI()
+    saveConfig()
 end)
 
 -- Auto Collect Checkbox toggle
 autoCollectCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.autoCollectEnabled = not RuntimeState.autoCollectEnabled
     updateAutoCollectCheckboxUI()
+    saveConfig()
 end)
 
 -- Auto Skill Checkbox toggle
 autoSkillCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.autoSkillEnabled = not RuntimeState.autoSkillEnabled
     updateAutoSkillCheckboxUI()
+    saveConfig()
 end)
 
 -- Auto Claim Checkbox toggle
 autoClaimCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.autoClaimEnabled = not RuntimeState.autoClaimEnabled
     updateAutoClaimCheckboxUI()
+    saveConfig()
 end)
 
 -- Auto Daily Quests Checkbox toggle
 autoDailyQuestsCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.autoDailyQuestsEnabled = not RuntimeState.autoDailyQuestsEnabled
     updateAutoDailyQuestsCheckboxUI()
+    saveConfig()
     if RuntimeState.autoDailyQuestsEnabled then
         for i = 1, 10 do
             local success, err = pcall(function()
@@ -1647,6 +1880,7 @@ end)
 autoAchievementCheckbox.MouseButton1Click:Connect(function()
     RuntimeState.autoAchievementEnabled = not RuntimeState.autoAchievementEnabled
     updateAutoAchievementCheckboxUI()
+    saveConfig()
 end)
 
 -- New Checkbox Toggles for Manual UI Opening
@@ -1660,6 +1894,7 @@ openEnchantUIManualCheckbox.MouseButton1Click:Connect(function()
         updateOpenSmithingUIManualCheckboxUI()
     end
     updateOpenEnchantUIManualCheckboxUI()
+    saveConfig()
 end)
 
 openMountsUIManualCheckbox.MouseButton1Click:Connect(function()
@@ -1672,6 +1907,7 @@ openMountsUIManualCheckbox.MouseButton1Click:Connect(function()
         updateOpenSmithingUIManualCheckboxUI()
     end
     updateOpenMountsUIManualCheckboxUI()
+    saveConfig()
 end)
 
 openSmithingUIManualCheckbox.MouseButton1Click:Connect(function()
@@ -1684,6 +1920,7 @@ openSmithingUIManualCheckbox.MouseButton1Click:Connect(function()
         updateOpenMountsUIManualCheckboxUI()
     end
     updateOpenSmithingUIManualCheckboxUI()
+    saveConfig()
 end)
 
 -- Auto Quest Logic
@@ -1830,21 +2067,36 @@ task.spawn(function()
     end
 end)
 
+-- Robust recursive chest finder
+local function findAllChests()
+    local chests = {}
+    local function recurse(parent)
+        for _, obj in ipairs(parent:GetChildren()) do
+            if obj:IsA("Model") and obj:FindFirstChild("RootPart") then
+                table.insert(chests, obj)
+            end
+            recurse(obj)
+        end
+    end
+    recurse(Services.Workspace)
+    return chests
+end
+
 -- Auto Claim Chest loop
 task.spawn(function()
     while true do
         if RuntimeState.autoClaimEnabled and CONFIG.AUTO_CLAIM_ENABLED then
+            print("[AutoClaim] Loop running")
             PlayerData.character = PlayerData.player.Character or PlayerData.player.CharacterAdded:Wait()
             PlayerData.hrp = PlayerData.character:FindFirstChild("HumanoidRootPart")
             if not PlayerData.hrp then task.wait(CONFIG.CHECK_INTERVAL) continue end
 
-            for _, chest in ipairs(Services.Workspace:GetChildren()) do
-                if chest:IsA("Model") and chest:FindFirstChild("RootPart") then
-                    openAndClaimChest(chest)
-                    if RuntimeState.autoDismantleEnabled then
-                        task.wait(0.1)
-                        AutoDismantleByMaxRarity(RaritySystem.map[RuntimeState.selectedRarity])
-                    end
+            for _, chest in ipairs(findAllChests()) do
+                print("[AutoClaim] Found chest:", chest.Name)
+                openAndClaimChest(chest)
+                if RuntimeState.autoDismantleEnabled then
+                    task.wait(0.1)
+                    AutoDismantleByMaxRarity(RaritySystem.map[RuntimeState.selectedRarity])
                 end
             end
         end
@@ -1898,3 +2150,168 @@ updateAutoAchievementCheckboxUI()
 updateOpenEnchantUIManualCheckboxUI()
 updateOpenMountsUIManualCheckboxUI()
 updateOpenSmithingUIManualCheckboxUI()
+updateFPSBoostCheckboxUI()
+
+-- After AutoDismantleByMaxRarity is defined and before update...CheckboxUI() calls:
+-- Restore dropdown button texts after loading config
+if RuntimeState.selectedMobName and mobDropdown then
+    mobDropdown.Text = "Mob: " .. RuntimeState.selectedMobName
+end
+if RuntimeState.selectedQuestId and questDropdown then
+    local questData = Modules.questList[tostring(RuntimeState.selectedQuestId)]
+    if questData then
+        local label = questData.Target
+        if questData.Repeatable then
+            label = label .. " (Repeatable)"
+        end
+        questDropdown.Text = "Quest: " .. label
+    end
+end
+if RuntimeState.selectedRarity and dismantleDropdown then
+    dismantleDropdown.Text = "Rarity: " .. RuntimeState.selectedRarity .. " and below"
+end
+
+-- Ensure script logic acts as if user made the selection
+-- For Quest: Accept the quest if selectedQuestId is set
+if RuntimeState.selectedQuestId then
+    local success, err = pcall(function()
+        Services.ReplicatedStorage.Systems.Quests.AcceptQuest:FireServer(RuntimeState.selectedQuestId)
+    end)
+    if not success then
+        warn("Failed to accept quest ID " .. tostring(RuntimeState.selectedQuestId) .. ": " .. tostring(err))
+    end
+end
+-- For Dismantle: If enabled, auto-dismantle by selected rarity
+if RuntimeState.autoDismantleEnabled and RuntimeState.selectedRarity then
+    local rarityIndex = RaritySystem.map[RuntimeState.selectedRarity]
+    if rarityIndex then
+        AutoDismantleByMaxRarity(rarityIndex)
+    end
+end
+
+-- Tab Bar UI
+local tabBar = Instance.new("Frame", frame)
+tabBar.Size = UDim2.new(0, 100 * scaleFactor, 1, 0)
+tabBar.Position = UDim2.new(0, 0, 0, 40)
+tabBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+tabBar.BackgroundTransparency = 1
+tabBar.BorderSizePixel = 0
+tabBar.ZIndex = 20
+local tabBarCorner = Instance.new("UICorner", tabBar)
+tabBarCorner.CornerRadius = UDim.new(0, 8 * scaleFactor)
+local tabBarLayout = Instance.new("UIListLayout", tabBar)
+tabBarLayout.FillDirection = Enum.FillDirection.Vertical
+tabBarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabBarLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+tabBarLayout.Padding = UDim.new(0, 6 * scaleFactor)
+
+local tabNames = {"Main", "Utility"}
+local tabButtons = {}
+local tabContentFrames = {}
+local selectedTab = "Main"
+
+for i, tabName in ipairs(tabNames) do
+    local btn = Instance.new("TextButton", tabBar)
+    btn.Size = UDim2.new(1, -10 * scaleFactor, 0, 36 * scaleFactor)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14 * scaleFactor
+    btn.Text = tabName
+    btn.ZIndex = 21
+    btn.Name = tabName .. "TabButton"
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
+    tabButtons[tabName] = btn
+end
+
+-- Main Tab Content Frame
+local mainTabFrame = Instance.new("Frame", frame)
+mainTabFrame.Name = "MainTabContent"
+mainTabFrame.Size = UDim2.new(1, -120 * scaleFactor, 1, 0)
+mainTabFrame.Position = UDim2.new(0, 120 * scaleFactor, 0, 0)
+mainTabFrame.BackgroundTransparency = 1
+mainTabFrame.ZIndex = 10
+tabContentFrames["Main"] = mainTabFrame
+
+-- Utility Tab Content Frame
+local utilityTabFrame = Instance.new("Frame", frame)
+utilityTabFrame.Name = "UtilityTabContent"
+utilityTabFrame.Size = UDim2.new(1, -120 * scaleFactor, 1, 0)
+utilityTabFrame.Position = UDim2.new(0, 120 * scaleFactor, 0, 0)
+utilityTabFrame.BackgroundTransparency = 1
+utilityTabFrame.ZIndex = 10
+tabContentFrames["Utility"] = utilityTabFrame
+
+-- Move all automation checkboxes and dropdowns into mainTabFrame
+followLabel.Parent = mainTabFrame
+followCheckbox.Parent = mainTabFrame
+killAuraLabel.Parent = mainTabFrame
+killAuraCheckbox.Parent = mainTabFrame
+autoQuestLabel.Parent = mainTabFrame
+autoQuestCheckbox.Parent = mainTabFrame
+autoCollectLabel.Parent = mainTabFrame
+autoCollectCheckbox.Parent = mainTabFrame
+autoSkillLabel.Parent = mainTabFrame
+autoSkillCheckbox.Parent = mainTabFrame
+autoClaimLabel.Parent = mainTabFrame
+autoClaimCheckbox.Parent = mainTabFrame
+autoDailyQuestsLabel.Parent = mainTabFrame
+autoDailyQuestsCheckbox.Parent = mainTabFrame
+autoAchievementLabel.Parent = mainTabFrame
+autoAchievementCheckbox.Parent = mainTabFrame
+questDropdown.Parent = mainTabFrame
+dropdownTitleLabel.Parent = mainTabFrame
+questDropdownFrame.Parent = mainTabFrame
+mobDropdown.Parent = mainTabFrame
+dropdownFrame.Parent = mainTabFrame
+dismantleDropdown.Parent = utilityTabFrame
+dismantleDropdownFrame.Parent = utilityTabFrame
+autoDismantleLabel.Parent = utilityTabFrame
+autoDismantleCheckbox.Parent = utilityTabFrame
+openEnchantUIManualLabel.Parent = utilityTabFrame
+openEnchantUIManualCheckbox.Parent = utilityTabFrame
+openMountsUIManualLabel.Parent = utilityTabFrame
+openMountsUIManualCheckbox.Parent = utilityTabFrame
+openSmithingUIManualLabel.Parent = utilityTabFrame
+openSmithingUIManualCheckbox.Parent = utilityTabFrame
+unlockWaystonesButton.Parent = utilityTabFrame
+waystoneDropdown.Parent = utilityTabFrame
+waystoneDropdownFrame.Parent = utilityTabFrame
+floorTeleportDropdown.Parent = utilityTabFrame
+floorTeleportDropdownFrame.Parent = utilityTabFrame
+fpsBoostLabel.Parent = utilityTabFrame
+fpsBoostCheckbox.Parent = utilityTabFrame
+
+-- Tab switching logic
+local function selectTab(tabName)
+    selectedTab = tabName
+    for name, frame in pairs(tabContentFrames) do
+        frame.Visible = (name == tabName)
+    end
+    for name, btn in pairs(tabButtons) do
+        btn.BackgroundColor3 = (name == tabName) and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(60, 60, 60)
+    end
+end
+for name, btn in pairs(tabButtons) do
+    btn.MouseButton1Click:Connect(function()
+        selectTab(name)
+    end)
+end
+selectTab("Main")
+
+-- Automatically set to smallest scale on Android
+if Services.UserInputService.TouchEnabled then
+    UISizeManager.currentSizeIndex = #UISizeManager.sizes
+    local newSize = UISizeManager.sizes[UISizeManager.currentSizeIndex]
+    frame.Size = UDim2.new(0, newSize.width * scaleFactor, 0, newSize.height * scaleFactor)
+    uiScale.Scale = newSize.scale * scaleFactor
+    -- Also update dropdown frame scales
+    for _, dropFrame in ipairs(dropdownFrames) do
+        for _, child in ipairs(dropFrame:GetChildren()) do
+            if child:IsA("UIScale") then
+                child.Scale = newSize.scale * scaleFactor
+            end
+        end
+    end
+end
