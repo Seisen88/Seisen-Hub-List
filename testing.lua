@@ -107,15 +107,20 @@ local CONFIG = {
     TELEPORT_DELAY = 2,
 }
 
+-- Add global unload flag and connection holders
+local isUnloaded = false
+local connections = {}
+
 -- ANTI-AFK SYSTEM
 local AntiAfkSystem = {
     -- Passive Anti-AFK
     setup = function()
-        PlayerData.player.Idled:Connect(function()
+        local conn = PlayerData.player.Idled:Connect(function()
             Services.VirtualUser:Button2Down(Vector2.new(0, 0), Services.Workspace.CurrentCamera.CFrame)
-    task.wait(1)
+            task.wait(1)
             Services.VirtualUser:Button2Up(Vector2.new(0, 0), Services.Workspace.CurrentCamera.CFrame)
-end)
+        end)
+        table.insert(connections, conn)
     end,
 
     -- Notification UI
@@ -611,8 +616,8 @@ questDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.1 * scaleFactor, 0)
 questDropdown.Position = UDim2.new(0.05, 0, 0.80, 0)
 questDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 questDropdown.TextColor3 = Color3.new(1, 1, 1)
-questDropdown.Font = Enum.Font.Gotham
-questDropdown.TextSize = 14 * scaleFactor
+questDropdown.Font = Enum.Font.GothamBold
+questDropdown.TextSize = 16 * scaleFactor
 questDropdown.Text = "Quest: (None)"
 questDropdown.ZIndex = 14
 local questDropdownCorner = Instance.new("UICorner", questDropdown)
@@ -653,8 +658,8 @@ mobDropdown.Size = UDim2.new(0.43 * scaleFactor, 0, 0.1 * scaleFactor, 0)
 mobDropdown.Position = UDim2.new(0.5, 0, 0.80, 0)
 mobDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mobDropdown.TextColor3 = Color3.new(1, 1, 1)
-mobDropdown.Font = Enum.Font.Gotham
-mobDropdown.TextSize = 14 * scaleFactor
+mobDropdown.Font = Enum.Font.GothamBold
+mobDropdown.TextSize = 16 * scaleFactor
 mobDropdown.Text = "Mob: Razor Boar"
 mobDropdown.ZIndex = 14
 local mobDropdownCorner = Instance.new("UICorner", mobDropdown)
@@ -692,7 +697,7 @@ end)
 -- Auto Dismantle Checkbox
 local autoDismantleLabel = Instance.new("TextLabel", frame)
 autoDismantleLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-autoDismantleLabel.Position = UDim2.new(0.05, 0, 0.11, 0)
+autoDismantleLabel.Position = UDim2.new(0.05, 0, 0.08, 0)
 autoDismantleLabel.Text = "Auto Dismantle: OFF"
 autoDismantleLabel.TextColor3 = Color3.new(1, 1, 1)
 autoDismantleLabel.BackgroundTransparency = 1
@@ -703,7 +708,7 @@ autoDismantleLabel.ZIndex = 11
 
 local autoDismantleCheckbox = Instance.new("TextButton", frame)
 autoDismantleCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-autoDismantleCheckbox.Position = UDim2.new(0.9, 0, 0.11, 0)
+autoDismantleCheckbox.Position = UDim2.new(0.9, 0, 0.08, 0)
 autoDismantleCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 autoDismantleCheckbox.Text = ""
 autoDismantleCheckbox.AutoButtonColor = false
@@ -714,18 +719,18 @@ Instance.new("UICorner", autoDismantleCheckbox).CornerRadius = UDim.new(1, 0)
 -- Auto Dismantle Dropdown
 local dismantleDropdown = Instance.new("TextButton", frame)
 dismantleDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
-dismantleDropdown.Position = UDim2.new(0.05, 0, 0.17, 0)
+dismantleDropdown.Position = UDim2.new(0.05, 0, 0.13, 0)
 dismantleDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dismantleDropdown.TextColor3 = Color3.new(1, 1, 1)
-dismantleDropdown.Font = Enum.Font.Gotham
-dismantleDropdown.TextSize = 14 * scaleFactor
+dismantleDropdown.Font = Enum.Font.GothamBold
+dismantleDropdown.TextSize = 16 * scaleFactor
 dismantleDropdown.Text = "Rarity: Uncommon and below"
 dismantleDropdown.ZIndex = 12
 local dismantleDropdownCorner = Instance.new("UICorner", dismantleDropdown)
 dismantleDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local dismantleDropdownFrame = Instance.new("Frame", frame)
-dismantleDropdownFrame.Position = UDim2.new(0.05, 0, 0.26, 0)
+dismantleDropdownFrame.Position = UDim2.new(0.05, 0, 0.20, 0)
 dismantleDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
 dismantleDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dismantleDropdownFrame.BorderSizePixel = 0
@@ -756,7 +761,7 @@ end)
 -- Open Enchant UI Checkbox
 local openEnchantUIManualLabel = Instance.new("TextLabel", frame)
 openEnchantUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-openEnchantUIManualLabel.Position = UDim2.new(0.05, 0, 0.27, 0)
+openEnchantUIManualLabel.Position = UDim2.new(0.05, 0, 0.24, 0)
 openEnchantUIManualLabel.Text = "Open Enchant UI: OFF"
 openEnchantUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
 openEnchantUIManualLabel.BackgroundTransparency = 1
@@ -767,7 +772,7 @@ openEnchantUIManualLabel.ZIndex = 11
 
 local openEnchantUIManualCheckbox = Instance.new("TextButton", frame)
 openEnchantUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-openEnchantUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.27, 0)
+openEnchantUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.24, 0)
 openEnchantUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openEnchantUIManualCheckbox.Text = ""
 openEnchantUIManualCheckbox.AutoButtonColor = false
@@ -778,7 +783,7 @@ Instance.new("UICorner", openEnchantUIManualCheckbox).CornerRadius = UDim.new(1,
 -- Open Mounts UI Checkbox
 local openMountsUIManualLabel = Instance.new("TextLabel", frame)
 openMountsUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-openMountsUIManualLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
+openMountsUIManualLabel.Position = UDim2.new(0.05, 0, 0.30, 0)
 openMountsUIManualLabel.Text = "Open Mounts UI: OFF"
 openMountsUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
 openMountsUIManualLabel.BackgroundTransparency = 1
@@ -789,7 +794,7 @@ openMountsUIManualLabel.ZIndex = 11
 
 local openMountsUIManualCheckbox = Instance.new("TextButton", frame)
 openMountsUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-openMountsUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.35, 0)
+openMountsUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.30, 0)
 openMountsUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openMountsUIManualCheckbox.Text = ""
 openMountsUIManualCheckbox.AutoButtonColor = false
@@ -800,7 +805,7 @@ Instance.new("UICorner", openMountsUIManualCheckbox).CornerRadius = UDim.new(1, 
 -- Open Smithing UI Checkbox
 local openSmithingUIManualLabel = Instance.new("TextLabel", frame)
 openSmithingUIManualLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-openSmithingUIManualLabel.Position = UDim2.new(0.05, 0, 0.43, 0)
+openSmithingUIManualLabel.Position = UDim2.new(0.05, 0, 0.36, 0)
 openSmithingUIManualLabel.Text = "Open Smithing UI: OFF"
 openSmithingUIManualLabel.TextColor3 = Color3.new(1, 1, 1)
 openSmithingUIManualLabel.BackgroundTransparency = 1
@@ -811,7 +816,7 @@ openSmithingUIManualLabel.ZIndex = 11
 
 local openSmithingUIManualCheckbox = Instance.new("TextButton", frame)
 openSmithingUIManualCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-openSmithingUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.43, 0)
+openSmithingUIManualCheckbox.Position = UDim2.new(0.9, 0, 0.36, 0)
 openSmithingUIManualCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 openSmithingUIManualCheckbox.Text = ""
 openSmithingUIManualCheckbox.AutoButtonColor = false
@@ -819,14 +824,36 @@ openSmithingUIManualCheckbox.ZIndex = 12
 Instance.new("UIAspectRatioConstraint", openSmithingUIManualCheckbox).AspectRatio = 1
 Instance.new("UICorner", openSmithingUIManualCheckbox).CornerRadius = UDim.new(1, 0)
 
+-- FPS Boost Checkbox
+local fpsBoostLabel = Instance.new("TextLabel", frame)
+fpsBoostLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
+fpsBoostLabel.Position = UDim2.new(0.05, 0, 0.42, 0)
+fpsBoostLabel.Text = "FPS Boost: OFF"
+fpsBoostLabel.TextColor3 = Color3.new(1, 1, 1)
+fpsBoostLabel.BackgroundTransparency = 1
+fpsBoostLabel.Font = Enum.Font.GothamBold
+fpsBoostLabel.TextSize = 14 * scaleFactor
+fpsBoostLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsBoostLabel.ZIndex = 11
+
+local fpsBoostCheckbox = Instance.new("TextButton", frame)
+fpsBoostCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
+fpsBoostCheckbox.Position = UDim2.new(0.9, 0, 0.42, 0)
+fpsBoostCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+fpsBoostCheckbox.Text = ""
+fpsBoostCheckbox.AutoButtonColor = false
+fpsBoostCheckbox.ZIndex = 12
+Instance.new("UIAspectRatioConstraint", fpsBoostCheckbox).AspectRatio = 1
+Instance.new("UICorner", fpsBoostCheckbox).CornerRadius = UDim.new(1, 0)
+
 -- Unlock All Waystones Button
 local unlockWaystonesButton = Instance.new("TextButton", frame)
 unlockWaystonesButton.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
-unlockWaystonesButton.Position = UDim2.new(0.05, 0, 0.50, 0)
+unlockWaystonesButton.Position = UDim2.new(0.05, 0, 0.48, 0)
 unlockWaystonesButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 unlockWaystonesButton.TextColor3 = Color3.new(1, 1, 1)
-unlockWaystonesButton.Font = Enum.Font.Gotham
-unlockWaystonesButton.TextSize = 14 * scaleFactor
+unlockWaystonesButton.Font = Enum.Font.GothamBold
+unlockWaystonesButton.TextSize = 16 * scaleFactor
 unlockWaystonesButton.Text = "Unlock All Waystones"
 unlockWaystonesButton.ZIndex = 12
 local unlockWaystonesButtonCorner = Instance.new("UICorner", unlockWaystonesButton)
@@ -835,18 +862,18 @@ unlockWaystonesButtonCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 -- Waystone Dropdown
 local waystoneDropdown = Instance.new("TextButton", frame)
 waystoneDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
-waystoneDropdown.Position = UDim2.new(0.05, 0, 0.60, 0)
+waystoneDropdown.Position = UDim2.new(0.05, 0, 0.585, 0)
 waystoneDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 waystoneDropdown.TextColor3 = Color3.new(1, 1, 1)
-waystoneDropdown.Font = Enum.Font.Gotham
-waystoneDropdown.TextSize = 14 * scaleFactor
+waystoneDropdown.Font = Enum.Font.GothamBold
+waystoneDropdown.TextSize = 16 * scaleFactor
 waystoneDropdown.Text = "Waystone: Choose..."
 waystoneDropdown.ZIndex = 12
 local waystoneDropdownCorner = Instance.new("UICorner", waystoneDropdown)
 waystoneDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local waystoneDropdownFrame = Instance.new("Frame", frame)
-waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.67, 0)
+waystoneDropdownFrame.Position = UDim2.new(0.05, 0, 0.655, 0)
 waystoneDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.4 * scaleFactor, 0)
 waystoneDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 waystoneDropdownFrame.BorderSizePixel = 0
@@ -877,18 +904,18 @@ end)
 -- Floor Teleport Dropdown
 local floorTeleportDropdown = Instance.new("TextButton", frame)
 floorTeleportDropdown.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
-floorTeleportDropdown.Position = UDim2.new(0.05, 0, 0.70, 0)
+floorTeleportDropdown.Position = UDim2.new(0.05, 0, 0.69, 0)
 floorTeleportDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 floorTeleportDropdown.TextColor3 = Color3.new(1, 1, 1)
-floorTeleportDropdown.Font = Enum.Font.Gotham
-floorTeleportDropdown.TextSize = 14 * scaleFactor
+floorTeleportDropdown.Font = Enum.Font.GothamBold
+floorTeleportDropdown.TextSize = 16 * scaleFactor
 floorTeleportDropdown.Text = "Teleport: Select Floor..."
 floorTeleportDropdown.ZIndex = 12
 local floorTeleportDropdownCorner = Instance.new("UICorner", floorTeleportDropdown)
 floorTeleportDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
 
 local floorTeleportDropdownFrame = Instance.new("Frame", frame)
-floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.77, 0)
+floorTeleportDropdownFrame.Position = UDim2.new(0.05, 0, 0.76, 0)
 floorTeleportDropdownFrame.Size = UDim2.new(0.9 * scaleFactor, 0, 0.5 * scaleFactor, 0)
 floorTeleportDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 floorTeleportDropdownFrame.BorderSizePixel = 0
@@ -916,28 +943,6 @@ floorTeleportLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(func
 floorTeleportScroll.CanvasSize = UDim2.new(0, 0, 0.5, floorTeleportLayout.AbsoluteContentSize.Y + 10 * scaleFactor)
 end)
 
--- FPS Boost Checkbox
-local fpsBoostLabel = Instance.new("TextLabel", frame)
-fpsBoostLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
-fpsBoostLabel.Position = UDim2.new(0.05, 0, 0.80, 0)
-fpsBoostLabel.Text = "FPS Boost: OFF"
-fpsBoostLabel.TextColor3 = Color3.new(1, 1, 1)
-fpsBoostLabel.BackgroundTransparency = 1
-fpsBoostLabel.Font = Enum.Font.GothamBold
-fpsBoostLabel.TextSize = 14 * scaleFactor
-fpsBoostLabel.TextXAlignment = Enum.TextXAlignment.Left
-fpsBoostLabel.ZIndex = 11
-
-local fpsBoostCheckbox = Instance.new("TextButton", frame)
-fpsBoostCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
-fpsBoostCheckbox.Position = UDim2.new(0.9, 0, 0.80, 0)
-fpsBoostCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-fpsBoostCheckbox.Text = ""
-fpsBoostCheckbox.AutoButtonColor = false
-fpsBoostCheckbox.ZIndex = 12
-Instance.new("UIAspectRatioConstraint", fpsBoostCheckbox).AspectRatio = 1
-Instance.new("UICorner", fpsBoostCheckbox).CornerRadius = UDim.new(1, 0)
-
 -- Floor Teleport logic
 local teleportFloorEvent = Services.ReplicatedStorage:WaitForChild("Systems", 9e9):WaitForChild("Teleport", 9e9):WaitForChild("Teleport", 9e9)
 local voidTowerEvent = Services.ReplicatedStorage:WaitForChild("Systems", 9e9):WaitForChild("TowerDungeon", 9e9):WaitForChild("StartDungeon", 9e9)
@@ -962,8 +967,8 @@ floorTeleportDropdown.MouseButton1Click:Connect(function()
         option.Size = UDim2.new(1, -10, 0, 25)
         option.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         option.TextColor3 = Color3.new(1, 1, 1)
-        option.Font = Enum.Font.Gotham
-        option.TextSize = 14
+        option.Font = Enum.Font.GothamBold
+        option.TextSize = 16 * scaleFactor
         option.Text = floorName
         option.Name = floorName
         option.BorderSizePixel = 0
@@ -1320,8 +1325,8 @@ dismantleDropdown.MouseButton1Click:Connect(function()
         option.Size = UDim2.new(1, -10, 0, 25)
         option.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         option.TextColor3 = Color3.new(1, 1, 1)
-        option.Font = Enum.Font.Gotham
-        option.TextSize = 14
+        option.Font = Enum.Font.GothamBold
+        option.TextSize = 16 * scaleFactor
         option.Text = rarity .. " and below"
         option.BorderSizePixel = 0
         option.BackgroundTransparency = 0.1
@@ -1374,17 +1379,15 @@ end)
 
 -- Function to open chest and claim reward
 local function openAndClaimChest(chestModel)
-    print("[AutoClaim] Trying to claim chest:", chestModel.Name)
     local root = chestModel:FindFirstChild("RootPart")
-    if not root then print("[AutoClaim] No RootPart") return end
+    if not root then return end
 
     local prompt = root:FindFirstChildWhichIsA("ProximityPrompt", true)
-    if not prompt then print("[AutoClaim] No ProximityPrompt") return end
+    if not prompt then return end
 
     prompt.MaxActivationDistance = RuntimeState.autoClaimEnabled and 500 or 10
 
     local dist = (PlayerData.hrp.Position - root.Position).Magnitude
-    print("[AutoClaim] Distance to chest:", dist)
     if dist <= CONFIG.TRIGGER_DISTANCE then
         pcall(function()
             prompt:InputHoldBegin()
@@ -1393,7 +1396,6 @@ local function openAndClaimChest(chestModel)
         end)
 
         task.delay(2.5, function()
-            print("[AutoClaim] Firing Remotes.chest:FireServer")
             pcall(function()
                 Remotes.chest:FireServer(chestModel)
             end)
@@ -1455,8 +1457,8 @@ questDropdown.MouseButton1Click:Connect(function()
         btn.Size = UDim2.new(1, -10, 0, 25)
         btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 14
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 16 * scaleFactor
         btn.Text = label
         btn.BorderSizePixel = 0
         btn.BackgroundTransparency = 0.1
@@ -1525,8 +1527,8 @@ mobDropdown.MouseButton1Click:Connect(function()
             option.Size = UDim2.new(1, -10, 0, 25)
             option.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
             option.TextColor3 = Color3.new(1, 1, 1)
-            option.Font = Enum.Font.Gotham
-            option.TextSize = 14
+            option.Font = Enum.Font.GothamBold
+            option.TextSize = 16 * scaleFactor
             option.Text = mob.Name
             option.BorderSizePixel = 0
             option.BackgroundTransparency = 0.1
@@ -1586,8 +1588,8 @@ waystoneDropdown.MouseButton1Click:Connect(function()
                 option.Size = UDim2.new(1, -10, 0, 25)
                 option.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
                 option.TextColor3 = Color3.new(1, 1, 1)
-                option.Font = Enum.Font.Gotham
-                option.TextSize = 14
+                option.Font = Enum.Font.GothamBold
+                option.TextSize = 16 * scaleFactor
                 option.Text = "Waystone " .. child.Name
                 option.Name = child.Name
                 option.BorderSizePixel = 0
@@ -1651,6 +1653,10 @@ local function activateHover(mobHRP)
     RuntimeState.lastVelocity = RuntimeState.bodyVelocity.Velocity
 
     Services.RunService:BindToRenderStep("FollowMobStep", Enum.RenderPriority.Character.Value, function()
+        if isUnloaded then
+            Services.RunService:UnbindFromRenderStep("FollowMobStep")
+            return
+        end
         if RuntimeState.stopFollowing or not mobHRP or not mobHRP.Parent then return end
         local targetPos = mobHRP.Position + Vector3.new(0, CONFIG.HEIGHT_OFFSET, -CONFIG.FOLLOW_DISTANCE)
         local offset = targetPos - PlayerData.hrp.Position
@@ -1699,6 +1705,7 @@ local function startFollowing()
     PlayerData.humanoid.AutoRotate = false
     task.spawn(function()
         while not RuntimeState.stopFollowing do
+            if isUnloaded then break end
             local mob = findClosestMob()
             if mob then
                 local mobHRP = mob:FindFirstChild("HumanoidRootPart")
@@ -1919,6 +1926,7 @@ end
 
 task.spawn(function()
     while true do
+        if isUnloaded then break end
         if RuntimeState.global_isEnabled_autoquest and RuntimeState.selectedQuestId then
             local activeQuestId = getActiveQuestId()
             if activeQuestId and activeQuestId ~= 0 then
@@ -1975,6 +1983,7 @@ task.spawn(function()
 end)
 
 QuestRemotes.update.OnClientEvent:Connect(function()
+    if isUnloaded then return end
     if RuntimeState.autoDailyQuestsEnabled then
         claimDailyQuestsAndRewards()
     end
@@ -1983,6 +1992,7 @@ end)
 -- Auto Achievement Logic
 task.spawn(function()
     while true do
+        if isUnloaded then break end
         if RuntimeState.autoAchievementEnabled then
             for id = 1, 50 do
                 local success, err = pcall(function()
@@ -1997,6 +2007,7 @@ end)
 -- Kill Aura loop
 task.spawn(function()
     while true do
+        if isUnloaded then break end
         if RuntimeState.killAuraEnabled and PlayerData.character and PlayerData.character:FindFirstChild("HumanoidRootPart") then
             local targets = {}
             for _, mob in pairs(GameFolders.mobsFolder:GetChildren()) do
@@ -2017,6 +2028,7 @@ end)
 -- Auto Collect loop
 task.spawn(function()
     while true do
+        if isUnloaded then break end
         if RuntimeState.autoCollectEnabled and CONFIG.AUTO_COLLECT_ENABLED then
             PlayerData.character = PlayerData.player.Character or PlayerData.player.CharacterAdded:Wait()
             PlayerData.hrp = PlayerData.character:FindFirstChild("HumanoidRootPart")
@@ -2061,14 +2073,13 @@ end
 -- Auto Claim Chest loop
 task.spawn(function()
     while true do
+        if isUnloaded then break end
         if RuntimeState.autoClaimEnabled and CONFIG.AUTO_CLAIM_ENABLED then
-            print("[AutoClaim] Loop running")
             PlayerData.character = PlayerData.player.Character or PlayerData.player.CharacterAdded:Wait()
             PlayerData.hrp = PlayerData.character:FindFirstChild("HumanoidRootPart")
             if not PlayerData.hrp then task.wait(CONFIG.CHECK_INTERVAL) continue end
 
             for _, chest in ipairs(findAllChests()) do
-                print("[AutoClaim] Found chest:", chest.Name)
                 openAndClaimChest(chest)
                 if RuntimeState.autoDismantleEnabled then
                     task.wait(0.1)
@@ -2083,6 +2094,7 @@ end)
 -- Auto Skill loop
 task.spawn(function()
     while true do
+        if isUnloaded then break end
         if RuntimeState.autoSkillEnabled and PlayerData.player.Character and PlayerData.player.Character:FindFirstChild("HumanoidRootPart") then
             local skill = getSkillName()
             if skill and skill ~= "" then
@@ -2106,12 +2118,13 @@ task.spawn(function()
 end)
 
 -- Respawn cleanup
-PlayerData.player.CharacterAdded:Connect(function(char)
+local charConn = PlayerData.player.CharacterAdded:Connect(function(char)
     PlayerData.character = char
     PlayerData.humanoid = char:WaitForChild("Humanoid")
     PlayerData.hrp = char:WaitForChild("HumanoidRootPart")
     stopFollowingNow()
 end)
+table.insert(connections, charConn)
 
 -- Initialize checkbox UI
 updateFollowCheckboxUI()
@@ -2218,6 +2231,35 @@ utilityTabFrame.Position = UDim2.new(0, 120 * scaleFactor, 0, 0)
 utilityTabFrame.BackgroundTransparency = 1
 utilityTabFrame.ZIndex = 10
 tabContentFrames["Utility"] = utilityTabFrame
+
+-- Unload Button (styled like other UI buttons)
+local unloadButton = Instance.new("TextButton", utilityTabFrame)
+unloadButton.Size = UDim2.new(0.9 * scaleFactor, 0, 0.1 * scaleFactor, 0)
+unloadButton.Position = UDim2.new(0.05, 0, 0.795, 0)
+unloadButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+unloadButton.TextColor3 = Color3.new(1, 1, 1)
+unloadButton.Font = Enum.Font.GothamBold
+unloadButton.TextSize = 16 * scaleFactor
+unloadButton.Text = "Unload UI"
+unloadButton.ZIndex = 12
+unloadButton.BorderSizePixel = 0
+unloadButton.BackgroundTransparency = 0.1
+local unloadButtonCorner = Instance.new("UICorner", unloadButton)
+unloadButtonCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
+
+unloadButton.MouseButton1Click:Connect(function()
+    isUnloaded = true
+    -- Disconnect all connections
+    for _, conn in ipairs(connections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    -- Unbind RenderStep
+    Services.RunService:UnbindFromRenderStep("FollowMobStep")
+    -- Destroy UI
+    if mainScreenGui and mainScreenGui.Parent then
+        mainScreenGui:Destroy()
+    end
+end)
 
 -- Move all automation checkboxes and dropdowns into mainTabFrame
 followLabel.Parent = mainTabFrame
