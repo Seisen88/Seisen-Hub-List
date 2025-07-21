@@ -89,7 +89,7 @@ local Modules = {
 
 -- CONFIGURATION & CONSTANTS
 local CONFIG = {
-    HEIGHT_OFFSET = 20,
+    HEIGHT_OFFSET = 35,
     FOLLOW_DISTANCE = 3,
     BASE_SPEED = 40,
     SPEED_CAP = 90,
