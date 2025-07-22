@@ -207,7 +207,9 @@ local RuntimeState = {
     dropCache = {},
     lastUsed = {},
     claimedQuest = {},
-    claimedReward = {}
+    claimedReward = {},
+    autoTowerDungeonEnabled = false,
+    selectedDungeonFloor = nil
 }
 
 -- CONFIG SAVE/LOAD SYSTEM
@@ -233,6 +235,8 @@ local function saveConfig()
         selectedQuestId = RuntimeState.selectedQuestId,
         selectedRarity = RuntimeState.selectedRarity,
         global_isEnabled_autoquest = RuntimeState.global_isEnabled_autoquest,
+        autoTowerDungeonEnabled = RuntimeState.autoTowerDungeonEnabled,
+        selectedDungeonFloor = RuntimeState.selectedDungeonFloor
     }
     pcall(function()
         writefile(CONFIG_FILE, HttpService:JSONEncode(config))
@@ -1666,8 +1670,18 @@ local function activateHover(mobHRP)
         if RuntimeState.stopFollowing or not mobHRP or not mobHRP.Parent then return end
         local targetPos = mobHRP.Position + Vector3.new(0, CONFIG.HEIGHT_OFFSET, -CONFIG.FOLLOW_DISTANCE)
         local offset = targetPos - PlayerData.hrp.Position
+        local dist = offset.Magnitude
+        local speed
+        if dist > 60 then
+            speed = 80
+        elseif dist > 20 then
+            speed = 100
+        else
+            speed = CONFIG.SPEED_CAP
+        end
+        speed = math.min(speed, CONFIG.SPEED_CAP)
         if offset.Magnitude > 0.5 then
-            local desired = offset.Unit * 50
+            local desired = offset.Unit * speed
             local smooth = RuntimeState.lastVelocity:Lerp(desired, 0.2)
             RuntimeState.bodyVelocity.Velocity = smooth
             RuntimeState.lastVelocity = smooth
@@ -1716,19 +1730,7 @@ local function startFollowing()
             if mob then
                 local mobHRP = mob:FindFirstChild("HumanoidRootPart")
                 if mobHRP then
-                    local target = mobHRP.Position + Vector3.new(0, CONFIG.HEIGHT_OFFSET, -CONFIG.FOLLOW_DISTANCE)
-                    local dist = (PlayerData.hrp.Position - target).Magnitude
-                    local speed = CONFIG.BASE_SPEED
-                    if dist > CONFIG.DISTANCE_THRESHOLD then speed = CONFIG.BASE_SPEED
-                    elseif dist > 60 then speed = 70
-                    elseif dist > 40 then speed = 90
-                    else speed = 110 end
-                    speed = math.clamp(speed, CONFIG.BASE_SPEED, CONFIG.SPEED_CAP)
-                    local duration = tweenTo(target, speed)
-                    task.wait(duration + 0.1)
-                    if not RuntimeState.stopFollowing and mobHRP and mobHRP.Parent then
-                        activateHover(mobHRP)
-                    end
+                    activateHover(mobHRP)
                 else
                     deactivateHover()
                 end
@@ -2204,7 +2206,7 @@ tabBarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 tabBarLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 tabBarLayout.Padding = UDim.new(0, 6 * scaleFactor)
 
-local tabNames = {"Main", "Utility"}
+local tabNames = {"Main", "Utility", "Tower & Dungeon"}
 local tabButtons = {}
 local tabContentFrames = {}
 local selectedTab = "Main"
@@ -2241,6 +2243,15 @@ utilityTabFrame.Position = UDim2.new(0, 120 * scaleFactor, 0, 0)
 utilityTabFrame.BackgroundTransparency = 1
 utilityTabFrame.ZIndex = 10
 tabContentFrames["Utility"] = utilityTabFrame
+
+-- Tower & Dungeon Tab Content Frame
+local towerTabFrame = Instance.new("Frame", frame)
+towerTabFrame.Name = "TowerDungeonTabContent"
+towerTabFrame.Size = UDim2.new(1, -120 * scaleFactor, 1, 0)
+towerTabFrame.Position = UDim2.new(0, 120 * scaleFactor, 0, 0)
+towerTabFrame.BackgroundTransparency = 1
+towerTabFrame.ZIndex = 10
+tabContentFrames["Tower & Dungeon"] = towerTabFrame
 
 -- Unload Button (styled like other UI buttons)
 local unloadButton = Instance.new("TextButton", utilityTabFrame)
@@ -2327,3 +2338,402 @@ for name, btn in pairs(tabButtons) do
     end)
 end
 selectTab("Main")
+
+-- Section Title for Auto Dungeon and Floor Selection
+local dungeonSectionTitle = Instance.new("TextLabel", towerTabFrame)
+dungeonSectionTitle.Size = UDim2.new(1, 0, 0.05 * scaleFactor, 0)
+dungeonSectionTitle.Position = UDim2.new(0, 0, 0.065, 0)
+dungeonSectionTitle.Text = "Auto Dungeon & Floor Selection"
+dungeonSectionTitle.TextColor3 = Color3.new(1, 1, 1)
+dungeonSectionTitle.BackgroundTransparency = 1
+dungeonSectionTitle.Font = Enum.Font.GothamBold
+dungeonSectionTitle.TextSize = 16 * scaleFactor
+dungeonSectionTitle.TextXAlignment = Enum.TextXAlignment.Center
+dungeonSectionTitle.ZIndex = 12
+
+-- Auto Dungeon Checkbox (Tower & Dungeon)
+local autoDungeonLabel = Instance.new("TextLabel", towerTabFrame)
+autoDungeonLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
+autoDungeonLabel.Position = UDim2.new(0.05, 0, 0.12, 0)
+autoDungeonLabel.Text = "Auto Dungeon: OFF"
+autoDungeonLabel.TextColor3 = Color3.new(1, 1, 1)
+autoDungeonLabel.BackgroundTransparency = 1
+autoDungeonLabel.Font = Enum.Font.GothamBold
+autoDungeonLabel.TextSize = 14 * scaleFactor
+autoDungeonLabel.TextXAlignment = Enum.TextXAlignment.Left
+autoDungeonLabel.ZIndex = 11
+
+local autoDungeonCheckbox = Instance.new("TextButton", towerTabFrame)
+autoDungeonCheckbox.Size = UDim2.new(0.05 * scaleFactor, 0, 0.05 * scaleFactor, 0)
+autoDungeonCheckbox.Position = UDim2.new(0.9, 0, 0.12, 0)
+autoDungeonCheckbox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+autoDungeonCheckbox.Text = ""
+autoDungeonCheckbox.AutoButtonColor = false
+autoDungeonCheckbox.ZIndex = 12
+Instance.new("UIAspectRatioConstraint", autoDungeonCheckbox).AspectRatio = 1
+Instance.new("UICorner", autoDungeonCheckbox).CornerRadius = UDim.new(1, 0)
+
+-- Update UI function
+local function updateAutoDungeonCheckboxUI()
+    autoDungeonCheckbox.BackgroundColor3 = RuntimeState.autoTowerDungeonEnabled and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(80, 80, 80)
+    autoDungeonLabel.Text = RuntimeState.autoTowerDungeonEnabled and "Auto Dungeon: ON" or "Auto Dungeon: OFF"
+end
+
+autoDungeonCheckbox.MouseButton1Click:Connect(function()
+    RuntimeState.autoTowerDungeonEnabled = not RuntimeState.autoTowerDungeonEnabled
+    updateAutoDungeonCheckboxUI()
+    saveConfig()
+end)
+
+-- Initialize UI
+updateAutoDungeonCheckboxUI()
+
+-- Auto Dungeon (Tower & Dungeon) logic
+local function findClosestMobTD()
+    if not GameFolders.mobsFolder then return nil end
+    local closest, minDist = nil, math.huge
+    for _, mob in pairs(GameFolders.mobsFolder:GetChildren()) do
+        if mob:IsA("Model") then
+            local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+            local mobHum = mob:FindFirstChild("Humanoid")
+            if mobHRP and (not mobHum or mobHum.Health > 0) then
+                local dist = (mobHRP.Position - PlayerData.hrp.Position).Magnitude
+                if dist < minDist then
+                    closest = mob
+                    minDist = dist
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function stopFollowingTD()
+    if RuntimeState.tdTween then RuntimeState.tdTween:Cancel() RuntimeState.tdTween = nil end
+    if RuntimeState.tdBodyVelocity then RuntimeState.tdBodyVelocity:Destroy() RuntimeState.tdBodyVelocity = nil end
+    Services.RunService:UnbindFromRenderStep("FollowMobStepTD")
+end
+
+task.spawn(function()
+    local lastMobHRP = nil
+    while true do
+        if isUnloaded then break end
+        if RuntimeState.autoTowerDungeonEnabled then
+            local mob = findClosestMobTD()
+            if mob then
+                local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+                if mobHRP then
+                    -- If mob changed, reset hover
+                    if lastMobHRP ~= mobHRP then
+                        Services.RunService:UnbindFromRenderStep("FollowMobStepTD")
+                        if RuntimeState.tdBodyVelocity then RuntimeState.tdBodyVelocity:Destroy() RuntimeState.tdBodyVelocity = nil end
+                        lastMobHRP = mobHRP
+                    end
+                    -- Hover logic (copy of activateHover, but separate)
+                    if not RuntimeState.tdBodyVelocity then
+                        RuntimeState.tdBodyVelocity = Instance.new("BodyVelocity")
+                        RuntimeState.tdBodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                        RuntimeState.tdBodyVelocity.P = 3000
+                        RuntimeState.tdBodyVelocity.Velocity = Vector3.zero
+                        RuntimeState.tdBodyVelocity.Parent = PlayerData.hrp
+                    end
+                    local lastVelocity = Vector3.zero
+                    Services.RunService:BindToRenderStep("FollowMobStepTD", Enum.RenderPriority.Character.Value, function()
+                        if isUnloaded or not RuntimeState.autoTowerDungeonEnabled then
+                            Services.RunService:UnbindFromRenderStep("FollowMobStepTD")
+                            if RuntimeState.tdBodyVelocity then RuntimeState.tdBodyVelocity:Destroy() RuntimeState.tdBodyVelocity = nil end
+                            return
+                        end
+                        if not mobHRP or not mobHRP.Parent then return end
+                        local targetPos = mobHRP.Position + Vector3.new(0, CONFIG.HEIGHT_OFFSET, -CONFIG.FOLLOW_DISTANCE)
+                        local offset = targetPos - PlayerData.hrp.Position
+                        local dist = offset.Magnitude
+                        local speed
+                        if dist > 60 then
+                            speed = 80
+                        elseif dist > 20 then
+                            speed = 100
+                        else
+                            speed = CONFIG.SPEED_CAP
+                        end
+                        speed = math.min(speed, CONFIG.SPEED_CAP)
+                        if offset.Magnitude > 0.5 then
+                            local desired = offset.Unit * speed
+                            local smooth = lastVelocity:Lerp(desired, 0.2)
+                            RuntimeState.tdBodyVelocity.Velocity = smooth
+                            lastVelocity = smooth
+                        else
+                            RuntimeState.tdBodyVelocity.Velocity = Vector3.zero
+                            lastVelocity = Vector3.zero
+                        end
+                        Modules.antiCheat:UpdatePosition(PlayerData.player, PlayerData.hrp.CFrame)
+                    end)
+                end
+            else
+                -- No mobs found, go to Portal if it exists
+                Services.RunService:UnbindFromRenderStep("FollowMobStepTD")
+                if RuntimeState.tdBodyVelocity then RuntimeState.tdBodyVelocity:Destroy() RuntimeState.tdBodyVelocity = nil end
+                lastMobHRP = nil
+                local portal
+                pcall(function()
+                    portal = workspace:FindFirstChild("TowerDungeon")
+                        and workspace.TowerDungeon:FindFirstChild("StaircaseRoom")
+                        and workspace.TowerDungeon.StaircaseRoom:FindFirstChild("Portal")
+                end)
+                if portal and portal:IsA("BasePart") then
+                    local target = portal.Position + Vector3.new(0, 5, 0)
+                    local dist = (PlayerData.hrp.Position - target).Magnitude
+                    local speed = CONFIG.BASE_SPEED
+                    if dist > CONFIG.DISTANCE_THRESHOLD then speed = CONFIG.BASE_SPEED
+                    elseif dist > 60 then speed = 70
+                    elseif dist > 40 then speed = 90
+                    else speed = 110 end
+                    speed = math.clamp(speed, CONFIG.BASE_SPEED, CONFIG.SPEED_CAP)
+                    local duration = tweenTo(target, speed)
+                    task.wait(duration + 0.1)
+                    -- Wait 5-8 seconds if close to portal
+                    if (PlayerData.hrp.Position - portal.Position).Magnitude <= 5 then
+                        task.wait(5 + math.random() * 3)
+                    end
+                end
+            end
+        else
+            stopFollowingTD()
+            lastMobHRP = nil
+        end
+        task.wait(0.2)
+    end
+end)
+
+-- Noclip logic for Auto Dungeon
+local function setCharacterNoCollide(state)
+    if not PlayerData.character then return end
+    for _, part in ipairs(PlayerData.character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not state and true or false
+        end
+    end
+end
+
+task.spawn(function()
+    local wasEnabled = false
+    while true do
+        if isUnloaded then break end
+        -- Noclip if either Auto Dungeon or Auto Farm is enabled
+        if RuntimeState.autoTowerDungeonEnabled or not RuntimeState.stopFollowing then
+            setCharacterNoCollide(true)
+            wasEnabled = true
+        elseif wasEnabled then
+            setCharacterNoCollide(false)
+            wasEnabled = false
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- Add to RuntimeState
+if RuntimeState.selectedDungeonFloor == nil then
+    RuntimeState.selectedDungeonFloor = 1
+end
+
+-- Dungeon Floor Dropdown UI
+local floorDropdownLabel = Instance.new("TextLabel", towerTabFrame)
+floorDropdownLabel.Size = UDim2.new(0.8, 0, 0.05 * scaleFactor, 0)
+floorDropdownLabel.Position = UDim2.new(0.05, 0, 0.19, 0)
+floorDropdownLabel.Text = "Select Dungeon Floor :"
+floorDropdownLabel.TextColor3 = Color3.new(1, 1, 1)
+floorDropdownLabel.BackgroundTransparency = 1
+floorDropdownLabel.Font = Enum.Font.GothamBold
+floorDropdownLabel.TextSize = 14 * scaleFactor
+floorDropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+floorDropdownLabel.ZIndex = 11
+
+local floorDropdown = Instance.new("TextButton", towerTabFrame)
+floorDropdown.Size = UDim2.new(0.9, 0, 0.07, 0)
+floorDropdown.Position = UDim2.new(0.05, 0, 0.25, 0)
+floorDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+floorDropdown.TextColor3 = Color3.new(1, 1, 1)
+floorDropdown.Font = Enum.Font.GothamBold
+floorDropdown.TextSize = 16 * scaleFactor
+floorDropdown.Text = "Floor: " .. tostring(RuntimeState.selectedDungeonFloor)
+floorDropdown.ZIndex = 14
+local floorDropdownCorner = Instance.new("UICorner", floorDropdown)
+floorDropdownCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
+
+local floorDropdownFrame = Instance.new("Frame", towerTabFrame)
+floorDropdownFrame.Size = UDim2.new(0.9, 0, 0.4, 0)
+floorDropdownFrame.Position = UDim2.new(0.05, 0, 0.32, 0)
+floorDropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+floorDropdownFrame.BorderSizePixel = 0
+floorDropdownFrame.Visible = false
+floorDropdownFrame.ClipsDescendants = true
+floorDropdownFrame.ZIndex = 13
+local floorDropdownFrameCorner = Instance.new("UICorner", floorDropdownFrame)
+floorDropdownFrameCorner.CornerRadius = UDim.new(0, 6 * scaleFactor)
+
+local floorScroll = Instance.new("ScrollingFrame", floorDropdownFrame)
+floorScroll.Size = UDim2.new(1, -10, 1, -10)
+floorScroll.Position = UDim2.new(0, 5, 0, 5)
+floorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+floorScroll.BackgroundTransparency = 1
+floorScroll.ScrollBarThickness = 4
+floorScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+floorScroll.BorderSizePixel = 0
+floorScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+floorScroll.ZIndex = 14
+
+local floorLayout = Instance.new("UIListLayout", floorScroll)
+floorLayout.SortOrder = Enum.SortOrder.LayoutOrder
+floorLayout.Padding = UDim.new(0, 5)
+floorLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    floorScroll.CanvasSize = UDim2.new(0, 0, 0, floorLayout.AbsoluteContentSize.Y + 10)
+end)
+
+floorDropdown.MouseButton1Click:Connect(function()
+    if floorDropdownFrame.Visible then
+        floorDropdownFrame.Visible = false
+        for _, child in ipairs(floorScroll:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        return
+    end
+    floorDropdownFrame.Visible = true
+    for i = 1, 50 do
+        local option = Instance.new("TextButton")
+        option.Size = UDim2.new(1, -10, 0, 25)
+        option.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        option.TextColor3 = Color3.new(1, 1, 1)
+        option.Font = Enum.Font.GothamBold
+        option.TextSize = 16 * scaleFactor
+        option.Text = tostring(i)
+        option.Name = tostring(i)
+        option.BorderSizePixel = 0
+        option.BackgroundTransparency = 0.1
+        option.ZIndex = 15
+        local optionCorner = Instance.new("UICorner", option)
+        optionCorner.CornerRadius = UDim.new(0, 4)
+        option.Parent = floorScroll
+        if i == RuntimeState.selectedDungeonFloor then
+            option.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+        end
+        option.MouseButton1Click:Connect(function()
+            RuntimeState.selectedDungeonFloor = i
+            floorDropdown.Text = "Floor: " .. tostring(i)
+            floorDropdownFrame.Visible = false
+            for _, child in ipairs(floorScroll:GetChildren()) do
+                if child:IsA("TextButton") then child:Destroy() end
+            end
+            saveConfig()
+            -- Instantly teleport to selected floor
+            local success, err = pcall(function()
+                Services.ReplicatedStorage.Systems.TowerDungeon.StartDungeon:FireServer(i)
+            end)
+            if not success then
+                warn("Failed to teleport to dungeon floor " .. tostring(i) .. ": " .. tostring(err))
+            end
+        end)
+        option.MouseEnter:Connect(function()
+            Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
+        end)
+        option.MouseLeave:Connect(function()
+            if i == RuntimeState.selectedDungeonFloor then
+                Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 255, 60)}):Play()
+            else
+                Services.TweenService:Create(option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            end
+        end)
+    end
+end)
+
+-- Kill Aura for Auto Dungeon
+local function autoDungeonKillAura()
+    if PlayerData.character and PlayerData.character:FindFirstChild("HumanoidRootPart") then
+        local targets = {}
+        for _, mob in pairs(GameFolders.mobsFolder:GetChildren()) do
+            local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+            if mobHRP and (mobHRP.Position - PlayerData.hrp.Position).Magnitude <= CONFIG.KILL_AURA_RANGE then
+                table.insert(targets, mob)
+                Remotes.doEffect:FireServer("SlashHit", mobHRP.Position, { mobHRP.CFrame })
+            end
+        end
+        if #targets > 0 then
+            Remotes.playerAttack:FireServer(targets)
+        end
+    end
+end
+
+-- Auto Collect for Auto Dungeon
+local function autoDungeonCollect()
+    PlayerData.character = PlayerData.player.Character or PlayerData.player.CharacterAdded:Wait()
+    PlayerData.hrp = PlayerData.character:FindFirstChild("HumanoidRootPart")
+    if not PlayerData.hrp then return end
+    for _, drop in pairs(RuntimeState.dropCache) do
+        local model = drop.model
+        local itemRef = drop.itemRef
+        if model and model.PrimaryPart and itemRef then
+            local distance = (PlayerData.hrp.Position - model.PrimaryPart.Position).Magnitude
+            if distance <= CONFIG.COLLECT_RADIUS then
+                pcall(function()
+                    Modules.drops:Pickup(PlayerData.player, itemRef)
+                    if RuntimeState.autoDismantleEnabled then
+                        task.wait(0.1)
+                        AutoDismantleByMaxRarity(RaritySystem.map[RuntimeState.selectedRarity])
+                    end
+                end)
+                break -- Only one per tick
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if isUnloaded then break end
+        if RuntimeState.autoTowerDungeonEnabled then
+            autoDungeonKillAura()
+        end
+        task.wait(CONFIG.KILL_AURA_DELAY)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        if isUnloaded then break end
+        if RuntimeState.autoTowerDungeonEnabled then
+            autoDungeonCollect()
+        end
+        task.wait(CONFIG.CHECK_INTERVAL)
+    end
+end)
+
+-- Auto Skill for Auto Dungeon
+local function autoDungeonSkill()
+    if PlayerData.player.Character and PlayerData.player.Character:FindFirstChild("HumanoidRootPart") then
+        local skill = getSkillName()
+        if skill and skill ~= "" then
+            local cooldown = getCooldown(skill)
+            local last = RuntimeState.lastUsed[skill] or 0
+            if tick() - last >= cooldown then
+                local target = getNearestMob()
+                if target then
+                    faceTarget(target.HumanoidRootPart)
+                    pcall(function()
+                        Remotes.useSkill:FireServer(skill)
+                        multiHitAttack(target, skill)
+                    end)
+                    RuntimeState.lastUsed[skill] = tick()
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if isUnloaded then break end
+        if RuntimeState.autoTowerDungeonEnabled then
+            autoDungeonSkill()
+        end
+        task.wait(1)
+    end
+end)
