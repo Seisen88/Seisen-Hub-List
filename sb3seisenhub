@@ -98,10 +98,10 @@ local CONFIG = {
     KILL_AURA_DELAY = 0.26,
     AUTO_COLLECT_ENABLED = true,
     COLLECT_RADIUS = 50,
-    CHECK_INTERVAL = 1,
+    CHECK_INTERVAL = 2,
     SKILL_SLOT = 1,
     FALLBACK_COOLDOWN = 2,
-    QUEST_CHECK_INTERVAL = 1,
+    QUEST_CHECK_INTERVAL = 2,
     TRIGGER_DISTANCE = 500,
     AUTO_CLAIM_ENABLED = true,
     TELEPORT_DELAY = 2,
@@ -2123,7 +2123,7 @@ task.spawn(function()
                 end
             end
         end
-        task.wait(0.5) -- was Heartbeat, now 0.5s
+        task.wait(1) -- was Heartbeat, now 1s for less lag
     end
 end)
 
