@@ -217,7 +217,7 @@ CheckKeyBtn.MouseButton1Click:Connect(function()
 		ScreenGui:Destroy()
 		task.spawn(function()
 			local success, result = pcall(function()
-				return loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/Swordburst%203.lua"))()
+				return loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/Swordburst3_Test.lua"))()
 			end)
 			if not success then
 				warn("❌ Failed to load Swordburst 3 script:", result)
