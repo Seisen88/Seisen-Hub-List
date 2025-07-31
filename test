@@ -18,9 +18,9 @@ local connections = connections or {}
 local AntiAfkSystem = {
     setup = function()
         local conn = PlayerData.player.Idled:Connect(function()
-            Services.VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            game:GetService("VirtualUser"):Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
             task.wait(1)
-            Services.VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            game:GetService("VirtualUser"):Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
         end)
         table.insert(connections, conn)
     end,
@@ -31,6 +31,7 @@ local AntiAfkSystem = {
         connections = {}
     end
 }
+
 AntiAfkSystem.setup()
 
 -- Try to get the skill system module
