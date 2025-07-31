@@ -100,11 +100,11 @@ local config = {
     fpsBoostEnabled = false,
     maxfpsBoostenabled = false,
     supermaxfpsBoostenabled = false,
-        autoSellEnabled = false,
+    autoSellEnabled = false,
     autoSellRarity = "Common",
 }
 
--- Load config if file exists
+-- ...existing code...
 if isfile(configFile) then
     local ok, data = pcall(function()
         return HttpService:JSONDecode(readfile(configFile))
@@ -116,9 +116,17 @@ if isfile(configFile) then
     end
 end
 
--- Helper to save config
-local function saveConfig()
-    writefile(configFile, HttpService:JSONEncode(config))
+-- Always apply FPS boost state after loading config
+if config.supermaxfpsBoostenabled then
+    enableSuperMaxFpsBoost()
+elseif config.maxfpsBoostenabled then
+    enableMaxFpsBoost()
+elseif config.fpsBoostEnabled then
+    enableCustomFpsBoost()
+else
+    disableSuperMaxFpsBoost()
+    disableMaxFpsBoost()
+    disableCustomFpsBoost()
 end
 
 -- Now, use config values as your defaults:
@@ -1853,19 +1861,6 @@ function disableSuperMaxFpsBoost()
     end
     originalFpsTransparency = {}
     if superMaxFpsBoostConn then superMaxFpsBoostConn:Disconnect() superMaxFpsBoostConn = nil end
-end
-
--- Place the config FPS boost block here!
-if config.supermaxfpsBoostenabled then
-    enableSuperMaxFpsBoost()
-elseif config.maxfpsBoostenabled then
-    enableMaxFpsBoost()
-elseif config.fpsBoostEnabled then
-    enableCustomFpsBoost()
-else
-    disableSuperMaxFpsBoost()
-    disableMaxFpsBoost()
-    disableCustomFpsBoost()
 end
 
 local fpsBoostEnabled = false
