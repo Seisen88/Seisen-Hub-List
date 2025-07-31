@@ -939,6 +939,10 @@ task.spawn(function()
             local found = false
             for _, mob in ipairs(mobFolder:GetChildren()) do
                 if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") then
+                    -- Skip mobs that have PetHealthbar or PetIItemRef
+                    if mob:FindFirstChild("PetHealthbar") or mob:FindFirstChild("PetIItemRef") then
+                        continue
+                    end
                     local mobHRP = mob.HumanoidRootPart
                     local healthbar = mob:FindFirstChild("Healthbar")
                     if healthbar and mobHRP then
