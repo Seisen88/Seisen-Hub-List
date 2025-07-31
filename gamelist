@@ -1,6 +1,6 @@
 local Games = {
-  [72212564918217] = "https://raw.githubusercontent.com/DOITZ9/game/refs/heads/main/StealAFish.luau", -- Steal A Fish
-  [129827112113663] = "https://raw.githubusercontent.com/DOITZ9/game/refs/heads/main/Prospecting.luau", -- Prospecting
+  [11523257493] = "https://raw.githubusercontent.com/DOITZ9/game/refs/heads/main/StealAFish.luau", -- Swordburst 3
+  [94845773826960] = "https://raw.githubusercontent.com/DOITZ9/game/refs/heads/main/Prospecting.luau", -- Dungeon Heroes
 }
 
 return Games
