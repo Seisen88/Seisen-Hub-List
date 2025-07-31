@@ -1,4 +1,4 @@
-local gamelist_content = game:HttpGet("https://raw.githubusercontent.com/DOITZ9/main/refs/heads/main/gamelist.luau")
+local gamelist_content = game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/gamelist")
 
 if not gamelist_content then
     return 
