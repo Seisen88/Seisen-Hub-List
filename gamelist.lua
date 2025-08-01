@@ -4,7 +4,7 @@ local Games = {
     -- Dungeon Heroes
     ["7546582051"] = "https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/main/Dungeonheroes.lua",
     -- Anime Eternal
-    ["788282945"} = "https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/AnimeEternal.lua",
+    ["7882829745"} = "https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/AnimeEternal.lua",
 }
 
 return Games
