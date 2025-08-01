@@ -1,4 +1,3 @@
-
 -- Cleanup on reload
 if getgenv().SeisenHubLoaded then
     if getgenv().SeisenHubUI and getgenv().SeisenHubUI.Parent then
@@ -28,21 +27,28 @@ local Window = Library:CreateWindow({
 getgenv().SeisenHubUI = Library.Gui
 
 -- Tabs & Groups
-local MainTab = Window:AddTab("Main", "box")
+
+local MainTab = Window:AddTab("Main", "atom")
 local LeftGroupbox = MainTab:AddLeftGroupbox("Automation")
-local RollToken = MainTab:AddLeftGroupbox("Auto Roll Tokens")
 local StatsGroupbox = MainTab:AddLeftGroupbox("Auto Stats")
-local RightGroupbox = MainTab:AddRightGroupbox("Auto Roll")
 local RewardsGroupbox = MainTab:AddRightGroupbox("Auto Rewards")
-local TeleportTab = Window:AddTab("Teleport & Dungeon")
+
+local TeleportTab = Window:AddTab("Teleport & Dungeon", "map")
 local TPGroupbox = TeleportTab:AddLeftGroupbox("Main Teleport")
 local DungeonGroupbox = TeleportTab:AddRightGroupbox("Auto Dungeon")
-local UP = Window:AddTab("Upgrades")
+
+local Roll = Window:AddTab("Rolls", "dice-5")
+local RollGroupbox = Roll:AddLeftGroupbox("Auto Rolls")
+local RollGroupbox2 = Roll:AddLeftGroupbox("Auto Roll Tokens")
+local AutoDeleteGroupbox = Roll:AddRightGroupbox("Auto Delete")
+
+local UP = Window:AddTab("Upgrades", "arrow-up")
 local UpgradeGroupbox = UP:AddLeftGroupbox("Upgrades")
 local Upgrade2 = UP:AddRightGroupbox("Upgrades 2")
-local RollUpgrade = UP:AddLeftGroupbox("Auto Roll and Upgrade")
-local UISettings = Window:AddTab("UI Settings")
+
+local UISettings = Window:AddTab("UI Settings", "settings")
 local UnloadGroupbox = UISettings:AddLeftGroupbox("Utilities")
+
 
 -- Services & Variables
 local Players = game:GetService("Players")
@@ -100,6 +106,8 @@ local autoRollDemonFruitsEnabled = false
 local autoAttackRangeUpgradeEnabled = false
 local mutePetSoundsEnabled = false
 local originalVolumes = {}
+local autoSpiritualPressureUpgradeEnabled = false
+local autoRollReiatsuColorEnabled = false
 local config = getgenv().SeisenHubConfig or {}
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
@@ -154,6 +162,9 @@ autoHakiUpgradeEnabled = config.AutoHakiUpgradeToggle or false
 autoRollDemonFruitsEnabled = config.AutoRollDemonFruitsToggle or false
 autoAttackRangeUpgradeEnabled = config.AutoAttackRangeUpgradeToggle or false
 pointsPerSecond = config.PointsPerSecondSlider or 1
+autoSpiritualPressureUpgradeEnabled = config.AutoSpiritualPressureUpgradeToggle or false
+autoRollReiatsuColorEnabled = config.AutoRollReiatsuColorToggle or false
+mutePetSoundsEnabled = config.MutePetSoundsToggle or false
 selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
 -- Helper to save config
@@ -163,10 +174,13 @@ local function saveConfig()
     config.AutoStatSingleDropdown = selectedStat
     config.PointsPerSecondSlider = pointsPerSecond
     config.AutoAvatarLevelingToggle = autoAvatarLevelingEnabled
-    config.MutePetSoundsToggle = mutePetSoundsEnabled -- Add this line
+    config.MutePetSoundsToggle = mutePetSoundsEnabled
+    config.AutoSpiritualPressureUpgradeToggle = autoSpiritualPressureUpgradeEnabled
+    config.AutoRollReiatsuColorToggle = autoRollReiatsuColorEnabled
     getgenv().SeisenHubConfig = config
     writefile(configFile, HttpService:JSONEncode(config))
 end
+
 -- ========== Automations =========
 
 local function disableAllAurasExcept(except)
@@ -223,7 +237,7 @@ local function startAutoFarm()
             end
 
             -- Check if currentTarget is invalid or too far
-            local maxDistance = 50 -- Adjust this value based on game attack range
+            local maxDistance = 50
             if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
                 or not currentTarget:FindFirstChild("Humanoid")
                 or currentTarget.Humanoid.Health <= 0
@@ -344,36 +358,20 @@ end
 
 local function startAutoAvatarLeveling()
     task.spawn(function()
-        while getgenv().SeisenHubRunning do
-            if autoAvatarLevelingEnabled then
-                local args = {
-                    [1] = {
-                        ["Value"] = true,
-                        ["Path"] = {
-                            [1] = "Settings",
-                            [2] = "Is_Auto_Avatar_Leveling",
-                        },
-                        ["Action"] = "Settings",
-                    }
+        while getgenv().SeisenHubRunning and autoAvatarLevelingEnabled do
+            local args = {
+                [1] = {
+                    ["Value"] = true,
+                    ["Path"] = {
+                        [1] = "Settings",
+                        [2] = "Is_Auto_Avatar_Leveling",
+                    },
+                    ["Action"] = "Settings",
                 }
-                pcall(function()
-                    ToServer:FireServer(unpack(args))
-                end)
-            else
-                local argsOff = {
-                    [1] = {
-                        ["Value"] = false,
-                        ["Path"] = {
-                            [1] = "Settings",
-                            [2] = "Is_Auto_Avatar_Leveling",
-                        },
-                        ["Action"] = "Settings",
-                    }
-                }
-                pcall(function()
-                    ToServer:FireServer(unpack(argsOff))
-                end)
-            end
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
             task.wait(1)
         end
     end)
@@ -567,6 +565,14 @@ local function startAutoDelete()
                         ["4"] = {"70011"},
                         ["5"] = {"70012"},
                         ["6"] = {"70013"}
+                    },
+                    ["Star_3"] = {
+                        ["1"] = {"70015"},
+                        ["2"] = {"70016"},
+                        ["3"] = {"70017"},
+                        ["4"] = {"70018"},
+                        ["5"] = {"70019"},
+                        ["6"] = {"70020"}
                     }
                 }
 
@@ -743,7 +749,7 @@ end
 
 local function startAutoUpgrade()
     task.spawn(function()
-        while autoUpgradeEnabled do
+        while autoUpgradeEnabled and getgenv().SeisenHubRunning do
             pcall(function()
                 for upgradeName, isEnabled in pairs(enabledUpgrades) do
                     if isEnabled then
@@ -758,7 +764,7 @@ local function startAutoUpgrade()
                     end
                 end
             end)
-            task.wait(2)
+            task.wait(0.5)
         end
     end)
 end
@@ -903,7 +909,137 @@ function startAutoAttackRangeUpgrade()
     end)
 end
 
--- Start tasks based on config
+local function applyNotificationsState()
+    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", 5)
+    if not playerGui then return end
+
+    local notifications = playerGui:WaitForChild("Notifications", 5)
+    if not notifications then return end
+
+    if disableNotificationsEnabled then
+        if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+            notifications.Enabled = false
+        elseif notifications:IsA("GuiObject") then
+            notifications.Visible = false
+        end
+    else
+        if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+            notifications.Enabled = true
+        elseif notifications:IsA("GuiObject") then
+            notifications.Visible = true
+        end
+    end
+end
+
+local function applyMutePetSoundsState()
+    local audioFolder = ReplicatedStorage:WaitForChild("Audio", 5)
+    if not audioFolder then return end
+
+    local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
+    for _, soundName in ipairs(petSounds) do
+        local sound = audioFolder:FindFirstChild(soundName)
+        if sound and sound:IsA("Sound") then
+            if mutePetSoundsEnabled then
+                if not originalVolumes[soundName] then
+                    originalVolumes[soundName] = sound.Volume
+                end
+                sound.Volume = 0
+            else
+                sound.Volume = originalVolumes[soundName] or 0.5
+            end
+        end
+    end
+
+    local mergeFolder = audioFolder:FindFirstChild("Merge")
+    if mergeFolder then
+        local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
+        for _, soundName in ipairs(mergeSounds) do
+            local sound = mergeFolder:FindFirstChild(soundName)
+            if sound and sound:IsA("Sound") then
+                if mutePetSoundsEnabled then
+                    if not originalVolumes[soundName] then
+                        originalVolumes[soundName] = sound.Volume
+                    end
+                    sound.Volume = 0
+                else
+                    sound.Volume = originalVolumes[soundName] or 0.5
+                end
+            end
+        end
+    end
+end
+
+task.defer(function()
+    repeat task.wait() until Library.Flags
+    for flag, value in pairs(config) do
+        if Library.Flags[flag] then
+            pcall(function()
+                Library.Flags[flag]:Set(value)
+            end)
+        end
+    end
+
+    local maxRetries = 5
+    local retryDelay = 1
+    for i = 1, maxRetries do
+        if disableNotificationsEnabled then
+            applyNotificationsState()
+            if Players.LocalPlayer:FindFirstChild("PlayerGui") and Players.LocalPlayer.PlayerGui:FindFirstChild("Notifications") then
+                break
+            end
+        end
+        task.wait(retryDelay)
+    end
+end)
+
+function startAutoSpiritualPressureUpgrade()
+    task.spawn(function()
+        while autoSpiritualPressureUpgradeEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Upgrading_Name"] = "Spiritual_Pressure",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Spiritual_Pressure",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+function startAutoRollReiatsuColor()
+    task.spawn(function()
+        -- Unlock Reiatsu Color first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Reiatsu_Color_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollReiatsuColorEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Reiatsu_Color",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
@@ -928,6 +1064,9 @@ if autoRollPirateCrewEnabled then startAutoRollPirateCrew() end
 if autoRollDemonFruitsEnabled then startAutoRollDemonFruits() end
 if autoHakiUpgradeEnabled then startAutoHakiUpgrade() end
 if autoAttackRangeUpgradeEnabled then startAutoAttackRangeUpgrade() end
+if autoRollReiatsuColorEnabled then startAutoRollReiatsuColor() end
+if disableNotificationsEnabled then applyNotificationsState() end
+if mutePetSoundsEnabled then applyMutePetSoundsState() end
 
 -- Auto Farm Toggle
 LeftGroupbox:AddToggle("AutoFarmToggle", {
@@ -987,7 +1126,21 @@ LeftGroupbox:AddToggle("AutoAvatarLevelingToggle", {
     Callback = function(Value)
         autoAvatarLevelingEnabled = Value
         config.AutoAvatarLevelingToggle = Value
-        if Value then startAutoAvatarLeveling() end
+        if Value then
+            startAutoAvatarLeveling()
+        else
+            -- Only call this ONCE when toggled off
+            local argsOff = {
+                [1] = {
+                    ["Value"] = false,
+                    ["Path"] = { "Settings", "Is_Auto_Avatar_Leveling" },
+                    ["Action"] = "Settings",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(argsOff))
+            end)
+        end
         saveConfig()
     end
 })
@@ -1017,7 +1170,7 @@ LeftGroupbox:AddToggle("AutoClaimAchievement", {
 })
 
 -- Auto Roll Dragon Race Toggle
-RollToken:AddToggle("AutoRollDragonRaceToggle", {
+RollGroupbox2:AddToggle("AutoRollDragonRaceToggle", {
     Text = "Auto Roll Dragon Race",
     Default = autoRollDragonRaceEnabled,
     Callback = function(Value)
@@ -1029,8 +1182,8 @@ RollToken:AddToggle("AutoRollDragonRaceToggle", {
 })
 
 -- Auto Roll Saiyan Evolution Toggle
-RollToken:AddToggle("AutoRollSaiyanEvolutionToggle", {
-    Text = "Auto Spin Saiyan Evolution",
+RollGroupbox2:AddToggle("AutoRollSaiyanEvolutionToggle", {
+    Text = "Auto Roll Saiyan Evolution",
     Default = autoRollSaiyanEvolutionEnabled,
     Callback = function(Value)
         autoRollSaiyanEvolutionEnabled = Value
@@ -1041,7 +1194,7 @@ RollToken:AddToggle("AutoRollSaiyanEvolutionToggle", {
 })
 
 -- Auto Roll Stars Toggle
-RightGroupbox:AddToggle("AutoRollStarsToggle", {
+RollGroupbox:AddToggle("AutoRollStarsToggle", {
     Text = "Auto Roll Stars",
     Default = autoRollEnabled,
     Callback = function(Value)
@@ -1053,7 +1206,7 @@ RightGroupbox:AddToggle("AutoRollStarsToggle", {
 })
 
 -- Select Star Dropdown
-RightGroupbox:AddDropdown("SelectStarDropdown", {
+RollGroupbox:AddDropdown("SelectStarDropdown", {
     Values = {"Star_1", "Star_2", "Star_3"},
     Default = selectedStar,
     Multi = false,
@@ -1066,7 +1219,7 @@ RightGroupbox:AddDropdown("SelectStarDropdown", {
 })
 
 -- Delay Slider
-RightGroupbox:AddSlider("DelayBetweenRollsSlider", {
+RollGroupbox:AddSlider("DelayBetweenRollsSlider", {
     Text = "Delay Between Rolls",
     Min = 0.5,
     Max = 2,
@@ -1079,11 +1232,58 @@ RightGroupbox:AddSlider("DelayBetweenRollsSlider", {
     end
 })
 
+-- Auto Roll Swords
+RollGroupbox2:AddToggle("AutoRollSwordsToggle", {
+    Text = "Auto Roll Swords",
+    Default = autoRollSwordsEnabled,
+    Callback = function(Value)
+        autoRollSwordsEnabled = Value
+        config.AutoRollSwordsToggle = Value
+        if Value then startAutoRollSwords() end
+        saveConfig()
+    end
+})
+
+-- Auto Roll Pirate Crew
+RollGroupbox2:AddToggle("AutoRollPirateCrewToggle", {
+    Text = "Auto Roll Pirate Crew",
+    Default = autoRollPirateCrewEnabled,
+    Callback = function(Value)
+        autoRollPirateCrewEnabled = Value
+        config.AutoRollPirateCrewToggle = Value
+        if Value then startAutoRollPirateCrew() end
+        saveConfig()
+    end
+})
+
+-- Auto Roll Demon Fruits
+RollGroupbox2:AddToggle("AutoRollDemonFruitsToggle", {
+    Text = "Auto Roll Demon Fruits",
+    Default = autoRollDemonFruitsEnabled,
+    Callback = function(Value)
+        autoRollDemonFruitsEnabled = Value
+        config.AutoRollDemonFruitsToggle = Value
+        if Value then startAutoRollDemonFruits() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollReiatsuColorToggle", {
+    Text = "Auto Roll Reiatsu Color",
+    Default = autoRollReiatsuColorEnabled,
+    Callback = function(Value)
+        autoRollReiatsuColorEnabled = Value
+        config.AutoRollReiatsuColorToggle = Value
+        if Value then startAutoRollReiatsuColor() end
+        saveConfig()
+    end
+})
+
 -- Auto Delete Settings
-RightGroupbox:AddLabel("Auto Delete Settings")
+AutoDeleteGroupbox:AddLabel("Auto Delete Settings")
 
 -- Auto Delete Toggle
-RightGroupbox:AddToggle("AutoDeleteUnitsToggle", {
+AutoDeleteGroupbox:AddToggle("AutoDeleteUnitsToggle", {
     Text = "Auto Delete Units",
     Default = autoDeleteEnabled,
     Callback = function(Value)
@@ -1095,8 +1295,8 @@ RightGroupbox:AddToggle("AutoDeleteUnitsToggle", {
 })
 
 -- Select Star for Auto Delete Dropdown
-RightGroupbox:AddDropdown("SelectDeleteStarDropdown", {
-    Values = {"Star_1", "Star_2"},
+AutoDeleteGroupbox:AddDropdown("SelectDeleteStarDropdown", {
+    Values = {"Star_1", "Star_2", "Star_3"},
     Default = selectedDeleteStar,
     Multi = false,
     Text = "Select Star for Auto Delete",
@@ -1108,7 +1308,7 @@ RightGroupbox:AddDropdown("SelectDeleteStarDropdown", {
 })
 
 -- Auto Delete Rarities Dropdown
-RightGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
+AutoDeleteGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
     Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical"},
     Default = {},
     Multi = true,
@@ -1244,10 +1444,20 @@ local teleportLocations = {
     ["Dungeon Lobby 1"] = "Dungeon_Lobby_1",
     ["Earth City"] = "Earth_City",
     ["Windmill Island"] = "Windmill_Island",
+    ["Soul Society"] = "Soul_Society",
+    ["Cursed School"] = "Cursed_School",
+    ["Slayer Village"] = "Slayer_Village",
+    ["Solo Island"] = "Solo_Island",
+    ["Clover Village"] = "Clover_Village",
+    ["Leaf Village"] = "Leaf_Village",
+    ["Spirit Residence"] = "Spirit_Residence",
+    ["Magic Hunter_City"] = "Magic_Hunter_City",
+    ["Titan Village"] = "Titan_Village",
+    ["Villageof Sins"] = "Village_of_Sins",
 }
 
 TPGroupbox:AddDropdown("MainTeleportDropdown", {
-    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island"},
+    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island", "Soul Society", "Cursed School", "Slayer Village", "Solo Island", "Clover Village", "Leaf Village", "Spirit Residence", "Magic_Hunter_City", "Titan Village", "Villageof Sins"},
     Default = config.MainTeleportDropdown or "Earth City",
     Multi = false,
     Text = "Teleport To",
@@ -1321,10 +1531,9 @@ DungeonGroupbox:AddToggle("AutoEnterDungeonToggle", {
 -- Upgrades
 local upgradeOptions = {
     "Star_Luck", "Damage", "Energy", "Coins", "Drops",
-    "Avatar_Souls_Drop", "Movement_Speed", "Fast_Roll"
+    "Avatar_Souls_Drop", "Movement_Speed", "Fast_Roll", "Star_Speed"
 }
-
-local enabledUpgrades = {}
+enabledUpgrades = enabledUpgrades or {}
 for _, upgradeName in ipairs(upgradeOptions) do
     enabledUpgrades[upgradeName] = config[upgradeName .. "_Toggle"] or false
 end
@@ -1376,38 +1585,13 @@ Upgrade2:AddToggle("AutoAttackRangeUpgradeToggle", {
     end
 })
 
--- Auto Roll Swords
-RollUpgrade:AddToggle("AutoRollSwordsToggle", {
-    Text = "Auto Roll Swords",
-    Default = autoRollSwordsEnabled,
+Upgrade2:AddToggle("AutoSpiritualPressureUpgradeToggle", {
+    Text = "Auto Spiritual Pressure Upgrade",
+    Default = autoSpiritualPressureUpgradeEnabled,
     Callback = function(Value)
-        autoRollSwordsEnabled = Value
-        config.AutoRollSwordsToggle = Value
-        if Value then startAutoRollSwords() end
-        saveConfig()
-    end
-})
-
--- Auto Roll Pirate Crew
-RollUpgrade:AddToggle("AutoRollPirateCrewToggle", {
-    Text = "Auto Roll Pirate Crew",
-    Default = autoRollPirateCrewEnabled,
-    Callback = function(Value)
-        autoRollPirateCrewEnabled = Value
-        config.AutoRollPirateCrewToggle = Value
-        if Value then startAutoRollPirateCrew() end
-        saveConfig()
-    end
-})
-
--- Auto Roll Demon Fruits
-RollUpgrade:AddToggle("AutoRollDemonFruitsToggle", {
-    Text = "Auto Roll Demon Fruits",
-    Default = autoRollDemonFruitsEnabled,
-    Callback = function(Value)
-        autoRollDemonFruitsEnabled = Value
-        config.AutoRollDemonFruitsToggle = Value
-        if Value then startAutoRollDemonFruits() end
+        autoSpiritualPressureUpgradeEnabled = Value
+        config.AutoSpiritualPressureUpgradeToggle = Value
+        if Value then startAutoSpiritualPressureUpgrade() end
         saveConfig()
     end
 })
@@ -1419,42 +1603,7 @@ UnloadGroupbox:AddToggle("MutePetSoundsToggle", {
     Callback = function(Value)
         mutePetSoundsEnabled = Value
         config.MutePetSoundsToggle = Value
-        local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
-        if audioFolder then
-            -- Sounds in ReplicatedStorage > Audio
-            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
-            for _, soundName in ipairs(petSounds) do
-                local sound = audioFolder:FindFirstChild(soundName)
-                if sound and sound:IsA("Sound") then
-                    if Value then
-                        if not originalVolumes[soundName] then
-                            originalVolumes[soundName] = sound.Volume
-                        end
-                        sound.Volume = 0
-                    else
-                        sound.Volume = originalVolumes[soundName] or 0.5
-                    end
-                end
-            end
-            -- Sounds in ReplicatedStorage > Audio > Merge
-            local mergeFolder = audioFolder:FindFirstChild("Merge")
-            if mergeFolder then
-                local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
-                for _, soundName in ipairs(mergeSounds) do
-                    local sound = mergeFolder:FindFirstChild(soundName)
-                    if sound and sound:IsA("Sound") then
-                        if Value then
-                            if not originalVolumes[soundName] then
-                                originalVolumes[soundName] = sound.Volume
-                            end
-                            sound.Volume = 0
-                        else
-                            sound.Volume = originalVolumes[soundName] or 0.5
-                        end
-                    end
-                end
-            end
-        end
+        applyMutePetSoundsState()
         saveConfig()
     end
 })
@@ -1465,26 +1614,8 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
     Default = disableNotificationsEnabled,
     Callback = function(Value)
         disableNotificationsEnabled = Value
-        local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-        if playerGui then
-            local notifications = playerGui:FindFirstChild("Notifications")
-            if notifications then
-                if Value then
-                    if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
-                        notifications.Enabled = false
-                    elseif notifications:IsA("GuiObject") then
-                        notifications.Visible = false
-                    end
-                else
-                    if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
-                        notifications.Enabled = true
-                    elseif notifications:IsA("GuiObject") then
-                        notifications.Visible = true
-                    end
-                end
-            end
-        end
         config.DisableNotificationsToggle = Value
+        applyNotificationsState()
         saveConfig()
     end
 })
@@ -1518,6 +1649,8 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoHakiUpgradeEnabled = false
     autoRollDemonFruitsEnabled = false
     autoAttackRangeUpgradeEnabled = false
+    autoAvatarLevelingEnabled = false
+    autoSpiritualPressureUpgradeEnabled = false
 
     local argsOff = {
         [1] = {
@@ -1530,16 +1663,42 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
         ToServer:FireServer(unpack(argsOff))
     end)
 
-    local argsAvatarLevelingOff = {
-        [1] = {
-            ["Value"] = false,
-            ["Path"] = { "Settings", "Is_Auto_Avatar_Leveling" },
-            ["Action"] = "Settings",
-        }
-    }
-    pcall(function()
-        ToServer:FireServer(unpack(argsAvatarLevelingOff))
-    end)
+    if mutePetSoundsEnabled then
+        local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
+        if audioFolder then
+            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
+            for _, soundName in ipairs(petSounds) do
+                local sound = audioFolder:FindFirstChild(soundName)
+                if sound and sound:IsA("Sound") then
+                    sound.Volume = originalVolumes[soundName] or 0.5
+                end
+            end
+            local mergeFolder = audioFolder:FindFirstChild("Merge")
+            if mergeFolder then
+                local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
+                for _, soundName in ipairs(mergeSounds) do
+                    local sound = mergeFolder:FindFirstChild(soundName)
+                    if sound and sound:IsA("Sound") then
+                        sound.Volume = originalVolumes[soundName] or 0.5
+                    end
+                end
+            end
+        end
+    end
+
+    if disableNotificationsEnabled then
+        local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local notifications = playerGui:FindFirstChild("Notifications")
+            if notifications then
+                if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+                    notifications.Enabled = true
+                elseif notifications:IsA("GuiObject") then
+                    notifications.Visible = true
+                end
+            end
+        end
+    end
 
     if Library and Library.Unload then
         pcall(function()
@@ -1564,7 +1723,6 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     getgenv().SeisenHubConfig = nil
 end)
 
--- Restore UI state
 task.defer(function()
     repeat task.wait() until Library.Flags
     for flag, value in pairs(config) do
@@ -1572,6 +1730,49 @@ task.defer(function()
             pcall(function()
                 Library.Flags[flag]:Set(value)
             end)
+        end
+    end
+
+    if disableNotificationsEnabled then
+        local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local notifications = playerGui:FindFirstChild("Notifications")
+            if notifications then
+                if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+                    notifications.Enabled = false
+                elseif notifications:IsA("GuiObject") then
+                    notifications.Visible = false
+                end
+            end
+        end
+    end
+
+    if mutePetSoundsEnabled then
+        local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
+        if audioFolder then
+            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
+            for _, soundName in ipairs(petSounds) do
+                local sound = audioFolder:FindFirstChild(soundName)
+                if sound and sound:IsA("Sound") then
+                    if not originalVolumes[soundName] then
+                        originalVolumes[soundName] = sound.Volume
+                    end
+                    sound.Volume = 0
+                end
+            end
+            local mergeFolder = audioFolder:FindFirstChild("Merge")
+            if mergeFolder then
+                local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
+                for _, soundName in ipairs(mergeSounds) do
+                    local sound = mergeFolder:FindFirstChild(soundName)
+                    if sound and sound:IsA("Sound") then
+                        if not originalVolumes[soundName] then
+                            originalVolumes[soundName] = sound.Volume
+                        end
+                        sound.Volume = 0
+                    end
+                end
+            end
         end
     end
 end)
