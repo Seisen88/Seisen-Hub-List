@@ -61,7 +61,7 @@ local monstersFolder = Workspace:WaitForChild("Debris", 9e9):WaitForChild("Monst
 local localPlayer = Players.LocalPlayer
 local teleportOffset = Vector3.new(0, 0, -3)
 
-local attackCooldown = 0.05
+local attackCooldown = 0.0001
 local currentTarget = nil
 
 local configFolder = "SeisenHub"
@@ -165,6 +165,7 @@ pointsPerSecond = config.PointsPerSecondSlider or 1
 autoSpiritualPressureUpgradeEnabled = config.AutoSpiritualPressureUpgradeToggle or false
 autoRollReiatsuColorEnabled = config.AutoRollReiatsuColorToggle or false
 mutePetSoundsEnabled = config.MutePetSoundsToggle or false
+selectedRaritiesDisplay = config.AutoDeleteRaritiesDropdown or {}
 selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
 -- Helper to save config
@@ -621,12 +622,6 @@ local function startAutoStats()
     task.spawn(function()
         while task.wait(1) do
             if autoStatsRunning and selectedStat then
-                local statMap = {
-                    Damage = "Primary_Damage",
-                    Energy = "Primary_Energy",
-                    Coins = "Primary_Coins",
-                    Luck = "Primary_Luck"
-                }
                 local args = {
                     [1] = {
                         ["Name"] = statMap[selectedStat] or selectedStat,
@@ -1307,54 +1302,67 @@ AutoDeleteGroupbox:AddDropdown("SelectDeleteStarDropdown", {
     end
 })
 
+local rarityMap = {
+    Common = "1",
+    Uncommon = "2",
+    Rare = "3",
+    Epic = "4",
+    Legendary = "5",
+    Mythical = "6"
+}
+for _, displayName in ipairs(selectedRaritiesDisplay) do
+    if rarityMap[displayName] then
+        selectedRarities[rarityMap[displayName]] = true
+    end
+end
+
 -- Auto Delete Rarities Dropdown
 AutoDeleteGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
     Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical"},
-    Default = {},
+    Default = selectedRaritiesDisplay,
     Multi = true,
     Text = "Select Rarities to Delete",
     Callback = function(Selected)
-        local rarityMap = {
-            Common = "1",
-            Uncommon = "2",
-            Rare = "3",
-            Epic = "4",
-            Legendary = "5",
-            Mythical = "6"
-        }
         selectedRarities = {}
         for displayName, _ in pairs(Selected) do
             if rarityMap[displayName] then
                 selectedRarities[rarityMap[displayName]] = true
             end
         end
-        config.AutoDeleteRaritiesDropdown = Selected
+        config.AutoDeleteRaritiesDropdown = {}
+        for displayName, _ in pairs(Selected) do
+            table.insert(config.AutoDeleteRaritiesDropdown, displayName)
+        end
         saveConfig()
     end
 })
 
 -- Auto Stats
-local statKeyMap = {
-    ["Damage"] = "Primary_Damage",
-    ["Energy"] = "Primary_Energy",
-    ["Coins"] = "Primary_Coins",
-    ["Luck"] = "Primary_Luck"
+-- Stats options (display names)
+local stats = {
+    "Damage",
+    "Energy",
+    "Coins",
+    "Luck"
 }
+
+-- Internal stat mapping
+local statMap = {
+    Damage = "Primary_Damage",
+    Energy = "Primary_Energy",
+    Coins = "Primary_Coins",
+    Luck = "Primary_Luck"
+}
+
 
 StatsGroupbox:AddDropdown("AutoStatSingleDropdown", {
     Values = stats,
-    Default = selectedStat,
+    Default = selectedStat, -- display name
     Multi = false,
     Text = "Select Stat",
     Callback = function(Value)
-        local statMap = {
-            Damage = "Primary_Damage",
-            Energy = "Primary_Energy",
-            Coins = "Primary_Coins",
-            Luck = "Primary_Luck"
-        }
-        selectedStat = statMap[Value] or Value
-        config.AutoStatSingleDropdown = selectedStat
+        selectedStat = Value -- display name
+        config.AutoStatSingleDropdown = Value
         saveConfig()
     end
 })
