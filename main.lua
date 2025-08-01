@@ -8,9 +8,11 @@ end)
 
 if not success or type(Games) ~= "table" then return end
 
-local scriptURL = Games[game.PlaceId]
+local gameId = tostring(game.GameId)
+local scriptURL = Games[gameId]
+
 if scriptURL then
     loadstring(game:HttpGet(scriptURL))()
 else
-    warn("No supported script found for this game. PlaceId: " .. game.PlaceId)
+    warn("No supported script found for this game. GameId: " .. gameId)
 end
