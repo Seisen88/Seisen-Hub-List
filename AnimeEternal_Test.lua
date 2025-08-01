@@ -1,3 +1,4 @@
+
 -- Cleanup on reload
 if getgenv().SeisenHubLoaded then
     if getgenv().SeisenHubUI and getgenv().SeisenHubUI.Parent then
@@ -71,6 +72,7 @@ local isAuraEnabled = false
 local fastKillAuraEnabled = false
 local slowKillAuraEnabled = false
 local autoRankEnabled = false
+local autoAvatarLevelingEnabled = false
 local autoAcceptAllQuestsEnabled = false
 local autoRollDragonRaceEnabled = false
 local autoRollSaiyanEvolutionEnabled = false
@@ -108,20 +110,14 @@ local stats = {
 
 -- Load config if file exists
 if isfile(configFile) then
-    print("Config file found:", readfile(configFile))
     local ok, data = pcall(function()
         return HttpService:JSONDecode(readfile(configFile))
     end)
     if ok and type(data) == "table" then
-        print("Parsed config:", data)
         for k, v in pairs(data) do
             config[k] = v
         end
-    else
-        print("Config parse error:", data)
     end
-else
-    print("Config file missing")
 end
 
 -- Load config values with defaults
@@ -129,6 +125,7 @@ isAuraEnabled = config.AutoFarmToggle or false
 fastKillAuraEnabled = config.FastKillAuraToggle or false
 slowKillAuraEnabled = config.SlowKillAuraToggle or false
 autoRankEnabled = config.AutoRankToggle or false
+autoAvatarLevelingEnabled = config.AutoAvatarLevelingToggle or false
 autoAcceptAllQuestsEnabled = config.AutoAcceptAllQuestsToggle or false
 autoRollDragonRaceEnabled = config.AutoRollDragonRaceToggle or false
 autoRollSaiyanEvolutionEnabled = config.AutoRollSaiyanEvolutionToggle or false
@@ -154,7 +151,7 @@ selectedStat = config.AutoStatSingleDropdown or "Damage"
 autoHakiUpgradeEnabled = config.AutoHakiUpgradeToggle or false
 autoRollDemonFruitsEnabled = config.AutoRollDemonFruitsToggle or false
 autoAttackRangeUpgradeEnabled = config.AutoAttackRangeUpgradeToggle or false
-pointsPerSecond = config.PointsPerSecondSlider or 1 -- 
+pointsPerSecond = config.PointsPerSecondSlider or 1
 selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
 -- Helper to save config
@@ -162,10 +159,10 @@ local function saveConfig()
     config.SelectedDungeons = selectedDungeons
     config.AutoAssignStatToggle = autoStatsRunning
     config.AutoStatSingleDropdown = selectedStat
-    config.PointsPerSecondSlider = pointsPerSecond -- Save new variable
+    config.PointsPerSecondSlider = pointsPerSecond
+    config.AutoAvatarLevelingToggle = autoAvatarLevelingEnabled
     getgenv().SeisenHubConfig = config
     writefile(configFile, HttpService:JSONEncode(config))
-    print("Config saved")
 end
 
 -- ========== Automations =========
@@ -207,9 +204,6 @@ local function teleportToMonster(monster)
     if myHRP and targetHRP then
         pcall(function()
             myHRP.CFrame = CFrame.new(targetHRP.Position + teleportOffset)
-            print("Teleported to monster:", monster.Name)
-        end, function(err)
-            print("Teleport error:", err)
         end)
     end
 end
@@ -241,9 +235,6 @@ local function startAutoFarm()
                     }
                     pcall(function()
                         ToServer:FireServer(unpack(args))
-                        print("Attacked monster:", currentTarget.Name)
-                    end, function(err)
-                        print("Attack error:", err)
                     end)
                 end
             end
@@ -263,9 +254,6 @@ local function startFastKillAura()
         }
         pcall(function()
             ToServer:FireServer(unpack(argsActivator))
-            print("Activated Fast Clicker")
-        end, function(err)
-            print("Fast Clicker activation error:", err)
         end)
         while fastKillAuraEnabled and getgenv().SeisenHubRunning do
             local monster = getNearestValidMonster()
@@ -280,9 +268,6 @@ local function startFastKillAura()
                     }
                     pcall(function()
                         ToServer:FireServer(unpack(argsAttack))
-                        print("Fast Kill Aura attacked:", monster.Name)
-                    end, function(err)
-                        print("Fast Kill Aura attack error:", err)
                     end)
                 end
             end
@@ -305,9 +290,6 @@ local function startSlowKillAura()
         }
         pcall(function()
             ToServer:FireServer(unpack(argsActivator))
-            print("Activated Slow Clicker")
-        end, function(err)
-            print("Slow Clicker activation error:", err)
         end)
         while slowKillAuraEnabled and getgenv().SeisenHubRunning do
             local monster = getNearestValidMonster()
@@ -322,9 +304,6 @@ local function startSlowKillAura()
                     }
                     pcall(function()
                         ToServer:FireServer(unpack(argsAttack))
-                        print("Slow Kill Aura attacked:", monster.Name)
-                    end, function(err)
-                        print("Slow Kill Aura attack error:", err)
                     end)
                 end
             end
@@ -345,10 +324,44 @@ local function startAutoRank()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Rank up attempted")
-            end, function(err)
-                print("Rank up error:", err)
             end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoAvatarLeveling()
+    task.spawn(function()
+        while getgenv().SeisenHubRunning do
+            if autoAvatarLevelingEnabled then
+                local args = {
+                    [1] = {
+                        ["Value"] = true,
+                        ["Path"] = {
+                            [1] = "Settings",
+                            [2] = "Is_Auto_Avatar_Leveling",
+                        },
+                        ["Action"] = "Settings",
+                    }
+                }
+                pcall(function()
+                    ToServer:FireServer(unpack(args))
+                end)
+            else
+                local argsOff = {
+                    [1] = {
+                        ["Value"] = false,
+                        ["Path"] = {
+                            [1] = "Settings",
+                            [2] = "Is_Auto_Avatar_Leveling",
+                        },
+                        ["Action"] = "Settings",
+                    }
+                }
+                pcall(function()
+                    ToServer:FireServer(unpack(argsOff))
+                end)
+            end
             task.wait(1)
         end
     end)
@@ -367,9 +380,6 @@ local function startAutoQuests()
                 }
                 pcall(function()
                     ToServer:FireServer(unpack(argsAccept))
-                    print("Accepted quest:", questId)
-                end, function(err)
-                    print("Quest accept error:", err)
                 end)
                 task.wait(0.05)
                 local argsComplete = {
@@ -381,9 +391,6 @@ local function startAutoQuests()
                 }
                 pcall(function()
                     ToServer:FireServer(unpack(argsComplete))
-                    print("Completed quest:", questId)
-                end, function(err)
-                    print("Quest complete error:", err)
                 end)
                 task.wait(0.05)
             end
@@ -438,9 +445,6 @@ local function startAutoAchievements()
                     }
                     pcall(function()
                         ToServer:FireServer(unpack(args))
-                        print("Claimed achievement:", id)
-                    end, function(err)
-                        print("Achievement claim error:", err)
                     end)
                     task.wait(0.2)
                 end
@@ -461,9 +465,6 @@ local function startAutoRollDragonRace()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Dragon Race")
-        end, function(err)
-            print("Dragon Race unlock error:", err)
         end)
         while getgenv().SeisenHubRunning and autoRollDragonRaceEnabled do
             local args = {
@@ -475,9 +476,6 @@ local function startAutoRollDragonRace()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Rolled Dragon Race")
-            end, function(err)
-                print("Dragon Race roll error:", err)
             end)
             task.wait(1)
         end
@@ -495,9 +493,6 @@ local function startAutoRollSaiyanEvolution()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Saiyan Evolution")
-        end, function(err)
-            print("Saiyan Evolution unlock error:", err)
         end)
         while getgenv().SeisenHubRunning and autoRollSaiyanEvolutionEnabled do
             local args = {
@@ -509,9 +504,6 @@ local function startAutoRollSaiyanEvolution()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Rolled Saiyan Evolution")
-            end, function(err)
-                print("Saiyan Evolution roll error:", err)
             end)
             task.wait(1)
         end
@@ -529,7 +521,6 @@ local function startAutoRollStars()
                     }
                 }
                 ToServer:FireServer(unpack(cacheArgs))
-                print("Star cache requested:", selectedStar)
                 local rollArgs = {
                     [1] = {
                         ["Open_Amount"] = 5,
@@ -538,9 +529,6 @@ local function startAutoRollStars()
                     }
                 }
                 ToServer:FireServer(unpack(rollArgs))
-                print("Rolled stars:", selectedStar)
-            end, function(err)
-                print("Star roll error:", err)
             end)
             task.wait(delayBetweenRolls)
         end
@@ -551,7 +539,6 @@ local function startAutoDelete()
     task.spawn(function()
         while autoDeleteEnabled and getgenv().SeisenHubRunning do
             pcall(function()
-                -- Define rarity mappings for each star
                 local starRarityMap = {
                     ["Star_1"] = {
                         ["1"] = {"70001", "70008"},
@@ -571,7 +558,6 @@ local function startAutoDelete()
                     }
                 }
 
-                -- Disable auto-delete for all rarities of all stars
                 for star, rarities in pairs(starRarityMap) do
                     for rarity, ids in pairs(rarities) do
                         for _, id in ipairs(ids) do
@@ -587,25 +573,21 @@ local function startAutoDelete()
                     end
                 end
 
-                -- Enable auto-delete for selected rarities of the selected star
                 local rarities = starRarityMap[selectedDeleteStar]
                 if rarities then
                     for rarity, _ in pairs(selectedRarities) do
-                        local ids = rarities[tostring(rarity)]
+                        local ids = rarities[rarity]
                         if ids then
                             for _, id in ipairs(ids) do
                                 local args = {
                                     [1] = {
                                         ["Value"] = true,
-                                        ["Path"] = {"Settings", "AutoDelete", "Stars", id, tostring(rarity)},
+                                        ["Path"] = {"Settings", "AutoDelete", "Stars", id, rarity},
                                         ["Action"] = "Settings"
                                     }
                                 }
                                 pcall(function()
                                     ToServer:FireServer(unpack(args))
-                                    print("Auto delete enabled for star:", selectedDeleteStar, "rarity:", rarity, "ID:", id)
-                                end, function(err)
-                                    print("Auto delete enable error:", err)
                                 end)
                             end
                         end
@@ -636,9 +618,6 @@ local function startAutoStats()
                 }
                 pcall(function()
                     ToServer:FireServer(unpack(args))
-                    print("Assigned stat:", selectedStat, "Points:", pointsPerSecond)
-                end, function(err)
-                    print("Stat assign error:", err)
                 end)
             end
         end
@@ -656,9 +635,6 @@ local function startAutoTimeReward()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Claimed time reward")
-            end, function(err)
-                print("Time reward claim error:", err)
             end)
             task.wait(1)
         end
@@ -676,9 +652,6 @@ local function startAutoDailyChest()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Claimed daily chest")
-            end, function(err)
-                print("Daily chest claim error:", err)
             end)
             task.wait(1)
         end
@@ -696,9 +669,6 @@ local function startAutoVipChest()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Claimed VIP chest")
-            end, function(err)
-                print("VIP chest claim error:", err)
             end)
             task.wait(1)
         end
@@ -716,9 +686,6 @@ local function startAutoGroupChest()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Claimed group chest")
-            end, function(err)
-                print("Group chest claim error:", err)
             end)
             task.wait(1)
         end
@@ -736,9 +703,6 @@ local function startAutoPremiumChest()
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Claimed premium chest")
-            end, function(err)
-                print("Premium chest claim error:", err)
             end)
             task.wait(1)
         end
@@ -750,7 +714,6 @@ local function startAutoEnterDungeon()
         while autoEnterDungeon and getgenv().SeisenHubRunning do
             for _, dungeon in ipairs(selectedDungeons) do
                 pcall(function()
-                    print("Firing dungeon entry:", dungeon)
                     local args = {
                         [1] = {
                             ["Action"] = "_Enter_Dungeon",
@@ -759,9 +722,9 @@ local function startAutoEnterDungeon()
                     }
                     ToServer:FireServer(unpack(args))
                 end)
-                task.wait(1) -- 1-second delay between each dungeon attempt
+                task.wait(1)
             end
-            task.wait(5) -- 5-second delay before restarting the loop
+            task.wait(5)
         end
     end)
 end
@@ -780,11 +743,8 @@ local function startAutoUpgrade()
                             }
                         }
                         ToServer:FireServer(unpack(args))
-                        print("Upgraded:", upgradeName)
                     end
                 end
-            end, function(err)
-                print("Upgrade error:", err)
             end)
             task.wait(2)
         end
@@ -802,9 +762,6 @@ local function startAutoRollSwords()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Swords")
-        end, function(err)
-            print("Swords unlock error:", err)
         end)
         while getgenv().SeisenHubRunning and autoRollSwordsEnabled do
             local rollArgs = {
@@ -816,9 +773,6 @@ local function startAutoRollSwords()
             }
             pcall(function()
                 ToServer:FireServer(unpack(rollArgs))
-                print("Rolled Swords")
-            end, function(err)
-                print("Swords roll error:", err)
             end)
             task.wait(1)
         end
@@ -836,9 +790,6 @@ local function startAutoRollPirateCrew()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Pirate Crew")
-        end, function(err)
-            print("Pirate Crew unlock error:", err)
         end)
         while getgenv().SeisenHubRunning and autoRollPirateCrewEnabled do
             local rollArgs = {
@@ -850,9 +801,6 @@ local function startAutoRollPirateCrew()
             }
             pcall(function()
                 ToServer:FireServer(unpack(rollArgs))
-                print("Rolled Pirate Crew")
-            end, function(err)
-                print("Pirate Crew roll error:", err)
             end)
             task.wait(1)
         end
@@ -870,9 +818,6 @@ function startAutoHakiUpgrade()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Haki Upgrade")
-        end, function(err)
-            print("Haki unlock error:", err)
         end)
         while autoHakiUpgradeEnabled and getgenv().SeisenHubRunning do
             local upgradeArgs = {
@@ -884,9 +829,6 @@ function startAutoHakiUpgrade()
             }
             pcall(function()
                 ToServer:FireServer(unpack(upgradeArgs))
-                print("Upgraded Haki")
-            end, function(err)
-                print("Haki upgrade error:", err)
             end)
             task.wait(2)
         end
@@ -904,9 +846,6 @@ function startAutoRollDemonFruits()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Demon Fruits")
-        end, function(err)
-            print("Demon Fruits unlock error:", err)
         end)
         while autoRollDemonFruitsEnabled and getgenv().SeisenHubRunning do
             local rollArgs = {
@@ -918,9 +857,6 @@ function startAutoRollDemonFruits()
             }
             pcall(function()
                 ToServer:FireServer(unpack(rollArgs))
-                print("Rolled Demon Fruits")
-            end, function(err)
-                print("Demon Fruits roll error:", err)
             end)
             task.wait(1)
         end
@@ -938,9 +874,6 @@ function startAutoAttackRangeUpgrade()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
-            print("Unlocked Attack Range")
-        end, function(err)
-            print("Attack Range unlock error:", err)
         end)
         while autoAttackRangeUpgradeEnabled and getgenv().SeisenHubRunning do
             local upgradeArgs = {
@@ -952,9 +885,6 @@ function startAutoAttackRangeUpgrade()
             }
             pcall(function()
                 ToServer:FireServer(unpack(upgradeArgs))
-                print("Upgraded Attack Range")
-            end, function(err)
-                print("Attack Range upgrade error:", err)
             end)
             task.wait(2)
         end
@@ -966,6 +896,7 @@ if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
 if autoRankEnabled then startAutoRank() end
+if autoAvatarLevelingEnabled then startAutoAvatarLeveling() end
 if autoAcceptAllQuestsEnabled then startAutoQuests() end
 if autoClaimAchievementsEnabled then startAutoAchievements() end
 if autoRollDragonRaceEnabled then startAutoRollDragonRace() end
@@ -996,7 +927,6 @@ LeftGroupbox:AddToggle("AutoFarmToggle", {
         isAuraEnabled = Value
         if Value then startAutoFarm() end
         saveConfig()
-        print("Auto Farm toggle:", Value)
     end
 })
 
@@ -1010,7 +940,6 @@ LeftGroupbox:AddToggle("FastKillAuraToggle", {
         config.FastKillAuraToggle = Value
         if Value then startFastKillAura() end
         saveConfig()
-        print("Fast Kill Aura toggle:", Value)
     end
 })
 
@@ -1024,7 +953,6 @@ LeftGroupbox:AddToggle("SlowKillAuraToggle", {
         config.SlowKillAuraToggle = Value
         if Value then startSlowKillAura() end
         saveConfig()
-        print("Slow Kill Aura toggle:", Value)
     end
 })
 
@@ -1037,7 +965,18 @@ LeftGroupbox:AddToggle("AutoRankToggle", {
         config.AutoRankToggle = Value
         if Value then startAutoRank() end
         saveConfig()
-        print("Auto Rank toggle:", Value)
+    end
+})
+
+-- Auto Avatar Leveling Toggle
+LeftGroupbox:AddToggle("AutoAvatarLevelingToggle", {
+    Text = "Auto Avatar Leveling",
+    Default = autoAvatarLevelingEnabled,
+    Callback = function(Value)
+        autoAvatarLevelingEnabled = Value
+        config.AutoAvatarLevelingToggle = Value
+        if Value then startAutoAvatarLeveling() end
+        saveConfig()
     end
 })
 
@@ -1050,7 +989,6 @@ LeftGroupbox:AddToggle("AutoAcceptAllQuestsToggle", {
         config.AutoAcceptAllQuestsToggle = Value
         if Value then startAutoQuests() end
         saveConfig()
-        print("Auto Quests toggle:", Value)
     end
 })
 
@@ -1063,7 +1001,6 @@ LeftGroupbox:AddToggle("AutoClaimAchievement", {
         config.AutoClaimAchievement = Value
         if Value then startAutoAchievements() end
         saveConfig()
-        print("Auto Achievements toggle:", Value)
     end
 })
 
@@ -1076,7 +1013,6 @@ RollToken:AddToggle("AutoRollDragonRaceToggle", {
         config.AutoRollDragonRaceToggle = Value
         if Value then startAutoRollDragonRace() end
         saveConfig()
-        print("Auto Roll Dragon Race toggle:", Value)
     end
 })
 
@@ -1089,7 +1025,6 @@ RollToken:AddToggle("AutoRollSaiyanEvolutionToggle", {
         config.AutoRollSaiyanEvolutionToggle = Value
         if Value then startAutoRollSaiyanEvolution() end
         saveConfig()
-        print("Auto Roll Saiyan Evolution toggle:", Value)
     end
 })
 
@@ -1102,7 +1037,6 @@ RightGroupbox:AddToggle("AutoRollStarsToggle", {
         config.AutoRollStarsToggle = Value
         if Value then startAutoRollStars() end
         saveConfig()
-        print("Auto Roll Stars toggle:", Value)
     end
 })
 
@@ -1116,7 +1050,6 @@ RightGroupbox:AddDropdown("SelectStarDropdown", {
         selectedStar = Option
         config.SelectStarDropdown = Option
         saveConfig()
-        print("Selected star:", Option)
     end
 })
 
@@ -1131,7 +1064,6 @@ RightGroupbox:AddSlider("DelayBetweenRollsSlider", {
         delayBetweenRolls = Value
         config.DelayBetweenRollsSlider = Value
         saveConfig()
-        print("Roll delay set:", Value)
     end
 })
 
@@ -1147,7 +1079,6 @@ RightGroupbox:AddToggle("AutoDeleteUnitsToggle", {
         config.AutoDeleteUnitsToggle = Value
         if Value then startAutoDelete() end
         saveConfig()
-        print("Auto Delete toggle:", Value)
     end
 })
 
@@ -1161,10 +1092,8 @@ RightGroupbox:AddDropdown("SelectDeleteStarDropdown", {
         selectedDeleteStar = Option
         config.SelectDeleteStarDropdown = Option
         saveConfig()
-        print("Selected star for auto delete:", Option)
     end
 })
-
 
 -- Auto Delete Rarities Dropdown
 RightGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
@@ -1173,7 +1102,6 @@ RightGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
     Multi = true,
     Text = "Select Rarities to Delete",
     Callback = function(Selected)
-        -- Map display names to numeric rarities
         local rarityMap = {
             Common = "1",
             Uncommon = "2",
@@ -1182,16 +1110,14 @@ RightGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
             Legendary = "5",
             Mythical = "6"
         }
-        local numericRarities = {}
+        selectedRarities = {}
         for displayName, _ in pairs(Selected) do
             if rarityMap[displayName] then
-                numericRarities[rarityMap[displayName]] = true
+                selectedRarities[rarityMap[displayName]] = true
             end
         end
-        selectedRarities = numericRarities
         config.AutoDeleteRaritiesDropdown = Selected
         saveConfig()
-        print("Selected rarities for auto delete:", Selected)
     end
 })
 
@@ -1218,10 +1144,8 @@ StatsGroupbox:AddDropdown("AutoStatSingleDropdown", {
         selectedStat = statMap[Value] or Value
         config.AutoStatSingleDropdown = selectedStat
         saveConfig()
-        print("Selected stat:", Value)
     end
 })
-
 
 StatsGroupbox:AddToggle("AutoAssignStatToggle", {
     Text = "Enable Auto Stat",
@@ -1231,7 +1155,6 @@ StatsGroupbox:AddToggle("AutoAssignStatToggle", {
         config.AutoAssignStatToggle = Value
         if Value then startAutoStats() end
         saveConfig()
-        print("Auto Stats toggle:", Value, "for stat:", selectedStat)
     end
 })
 
@@ -1245,7 +1168,6 @@ StatsGroupbox:AddSlider("PointsPerSecondSlider", {
         pointsPerSecond = Value
         config.PointsPerSecondSlider = Value
         saveConfig()
-        print("Points per second set:", Value)
     end
 })
 
@@ -1258,7 +1180,6 @@ RewardsGroupbox:AddToggle("AutoClaimTimeRewardToggle", {
         config.AutoClaimTimeRewardToggle = Value
         if Value then startAutoTimeReward() end
         saveConfig()
-        print("Auto Time Reward toggle:", Value)
     end
 })
 
@@ -1270,7 +1191,6 @@ RewardsGroupbox:AddToggle("AutoClaimDailyChestToggle", {
         config.AutoClaimDailyChestToggle = Value
         if Value then startAutoDailyChest() end
         saveConfig()
-        print("Auto Daily Chest toggle:", Value)
     end
 })
 
@@ -1282,7 +1202,6 @@ RewardsGroupbox:AddToggle("AutoClaimVipChestToggle", {
         config.AutoClaimVipChestToggle = Value
         if Value then startAutoVipChest() end
         saveConfig()
-        print("Auto Vip Chest toggle:", Value)
     end
 })
 
@@ -1294,7 +1213,6 @@ RewardsGroupbox:AddToggle("AutoClaimGroupChestToggle", {
         config.AutoClaimGroupChestToggle = Value
         if Value then startAutoGroupChest() end
         saveConfig()
-        print("Auto Group Chest toggle:", Value)
     end
 })
 
@@ -1306,7 +1224,6 @@ RewardsGroupbox:AddToggle("AutoClaimPremiumChestToggle", {
         config.AutoClaimPremiumChestToggle = Value
         if Value then startAutoPremiumChest() end
         saveConfig()
-        print("Auto Premium Chest toggle:", Value)
     end
 })
 
@@ -1334,9 +1251,6 @@ TPGroupbox:AddDropdown("MainTeleportDropdown", {
             }
             pcall(function()
                 ToServer:FireServer(unpack(args))
-                print("Teleported to:", selected)
-            end, function(err)
-                print("Teleport error:", err)
             end)
         end
         config.MainTeleportDropdown = selected
@@ -1354,7 +1268,6 @@ local dungeonList = {
     "Leaf_Raid"
 }
 
--- Create toggles for each dungeon
 for _, dungeon in ipairs(dungeonList) do
     local default = table.find(selectedDungeons, dungeon) ~= nil
     DungeonGroupbox:AddToggle("Toggle_" .. dungeon, {
@@ -1375,7 +1288,6 @@ for _, dungeon in ipairs(dungeonList) do
             end
             config.SelectedDungeons = selectedDungeons
             saveConfig()
-            print("Selected Dungeons:", table.concat(selectedDungeons, ", "))
         end
     })
 end
@@ -1389,10 +1301,7 @@ DungeonGroupbox:AddToggle("AutoEnterDungeonToggle", {
         config.AutoEnterDungeonToggle = Value
         saveConfig()
         if Value then
-            print("Auto Dungeon enabled. Selected:", table.concat(selectedDungeons, ", "))
             startAutoEnterDungeon()
-        else
-            print("Auto Dungeon disabled.")
         end
     end
 })
@@ -1416,7 +1325,6 @@ UpgradeGroupbox:AddToggle("AutoUpgradeToggle", {
         config.AutoUpgradeToggle = Value
         if Value then startAutoUpgrade() end
         saveConfig()
-        print("Auto Upgrade toggle:", Value)
     end
 })
 
@@ -1429,7 +1337,6 @@ for _, upgradeName in ipairs(upgradeOptions) do
             enabledUpgrades[upgradeName] = Value
             config[upgradeName .. "_Toggle"] = Value
             saveConfig()
-            print("Upgrade toggle:", upgradeName, Value)
         end
     })
 end
@@ -1443,7 +1350,6 @@ Upgrade2:AddToggle("AutoHakiUpgradeToggle", {
         config.AutoHakiUpgradeToggle = Value
         if Value then startAutoHakiUpgrade() end
         saveConfig()
-        print("Auto Haki Upgrade toggle:", Value)
     end
 })
 
@@ -1455,7 +1361,6 @@ Upgrade2:AddToggle("AutoAttackRangeUpgradeToggle", {
         config.AutoAttackRangeUpgradeToggle = Value
         if Value then startAutoAttackRangeUpgrade() end
         saveConfig()
-        print("Auto Attack Range Upgrade toggle:", Value)
     end
 })
 
@@ -1468,7 +1373,6 @@ RollUpgrade:AddToggle("AutoRollSwordsToggle", {
         config.AutoRollSwordsToggle = Value
         if Value then startAutoRollSwords() end
         saveConfig()
-        print("Auto Roll Swords toggle:", Value)
     end
 })
 
@@ -1481,7 +1385,6 @@ RollUpgrade:AddToggle("AutoRollPirateCrewToggle", {
         config.AutoRollPirateCrewToggle = Value
         if Value then startAutoRollPirateCrew() end
         saveConfig()
-        print("Auto Roll Pirate Crew toggle:", Value)
     end
 })
 
@@ -1494,7 +1397,6 @@ RollUpgrade:AddToggle("AutoRollDemonFruitsToggle", {
         config.AutoRollDemonFruitsToggle = Value
         if Value then startAutoRollDemonFruits() end
         saveConfig()
-        print("Auto Roll Demon Fruits toggle:", Value)
     end
 })
 
@@ -1521,7 +1423,6 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
                         notifications.Visible = true
                     end
                 end
-                print("Notifications toggle:", Value)
             end
         end
         config.DisableNotificationsToggle = Value
@@ -1538,14 +1439,16 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     isAuraEnabled = false
     fastKillAuraEnabled = false
     slowKillAuraEnabled = false
-    autoRollEnabled = false
-    autoDeleteEnabled = false
-    autoStatsRunning = false
     autoRankEnabled = false
+    autoAvatarLevelingEnabled = false
     autoAcceptAllQuestsEnabled = false
-    autoClaimAchievementsEnabled = false
     autoRollDragonRaceEnabled = false
     autoRollSaiyanEvolutionEnabled = false
+    autoRollEnabled = false
+    autoDeleteEnabled = false
+    autoClaimAchievementsEnabled = false
+    autoRollSwordsEnabled = false
+    autoRollPirateCrewEnabled = false
     isAutoTimeRewardEnabled = false
     isAutoDailyChestEnabled = false
     isAutoVipChestEnabled = false
@@ -1553,8 +1456,6 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     isAutoPremiumChestEnabled = false
     autoUpgradeEnabled = false
     autoEnterDungeon = false
-    autoRollSwordsEnabled = false
-    autoRollPirateCrewEnabled = false
     autoHakiUpgradeEnabled = false
     autoRollDemonFruitsEnabled = false
     autoAttackRangeUpgradeEnabled = false
@@ -1568,20 +1469,26 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     }
     pcall(function()
         ToServer:FireServer(unpack(argsOff))
-        print("Disabled auto clicker")
-    end, function(err)
-        print("Auto clicker disable error:", err)
+    end)
+
+    local argsAvatarLevelingOff = {
+        [1] = {
+            ["Value"] = false,
+            ["Path"] = { "Settings", "Is_Auto_Avatar_Leveling" },
+            ["Action"] = "Settings",
+        }
+    }
+    pcall(function()
+        ToServer:FireServer(unpack(argsAvatarLevelingOff))
     end)
 
     if Library and Library.Unload then
         pcall(function()
             Library:Unload()
-            print("Unloaded Library")
         end)
     elseif getgenv().SeisenHubUI and getgenv().SeisenHubUI.Parent then
         pcall(function()
             getgenv().SeisenHubUI:Destroy()
-            print("Destroyed SeisenHub UI")
         end)
     end
 
@@ -1590,30 +1497,22 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
             pcall(function() conn:Disconnect() end)
         end
         getgenv().SeisenHubConnections = nil
-        print("Disconnected all connections")
     end
 
     getgenv().SeisenHubUI = nil
     getgenv().SeisenHubLoaded = nil
     getgenv().SeisenHubRunning = nil
     getgenv().SeisenHubConfig = nil
-    print("[Seisen Hub] Fully unloaded.")
 end)
 
 -- Restore UI state
 task.defer(function()
     repeat task.wait() until Library.Flags
-    print("Restoring flags:", config)
     for flag, value in pairs(config) do
         if Library.Flags[flag] then
             pcall(function()
                 Library.Flags[flag]:Set(value)
-                print("Set flag", flag, "to", value)
-            end, function(err)
-                print("Flag set error:", flag, err)
             end)
-        else
-            print("Flag not found:", flag)
         end
     end
 end)
