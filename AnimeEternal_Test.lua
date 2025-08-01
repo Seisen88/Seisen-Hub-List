@@ -1422,7 +1422,7 @@ UnloadGroupbox:AddToggle("MutePetSoundsToggle", {
         local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
         if audioFolder then
             -- Sounds in ReplicatedStorage > Audio
-            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll"}
+            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
             for _, soundName in ipairs(petSounds) do
                 local sound = audioFolder:FindFirstChild(soundName)
                 if sound and sound:IsA("Sound") then
@@ -1439,7 +1439,7 @@ UnloadGroupbox:AddToggle("MutePetSoundsToggle", {
             -- Sounds in ReplicatedStorage > Audio > Merge
             local mergeFolder = audioFolder:FindFirstChild("Merge")
             if mergeFolder then
-                local mergeSounds = {"PetsAppearingSound", "Drumroll"}
+                local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
                 for _, soundName in ipairs(mergeSounds) do
                     local sound = mergeFolder:FindFirstChild(soundName)
                     if sound and sound:IsA("Sound") then
