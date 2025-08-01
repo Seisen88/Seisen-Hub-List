@@ -3,4 +3,14 @@ local Games = {
   [94845773826960] = "https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/Dungeonheroes.lua", -- Dungeon Heroes
 }
 
+local placeId = game.PlaceId
+local scriptURL = placeScripts[placeId]
+
+if scriptURL then
+    print("Loading script for game ID:", placeId)
+    loadstring(game:HttpGet(scriptURL))()
+else
+    warn("No script available for this game (PlaceId: " .. placeId .. ")")
+end
+
 return Games
