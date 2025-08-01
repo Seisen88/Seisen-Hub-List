@@ -98,6 +98,8 @@ local selectedStat = "Damage"
 local autoHakiUpgradeEnabled = false
 local autoRollDemonFruitsEnabled = false
 local autoAttackRangeUpgradeEnabled = false
+local mutePetSoundsEnabled = false
+local originalVolumes = {}
 local config = getgenv().SeisenHubConfig or {}
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
@@ -161,10 +163,10 @@ local function saveConfig()
     config.AutoStatSingleDropdown = selectedStat
     config.PointsPerSecondSlider = pointsPerSecond
     config.AutoAvatarLevelingToggle = autoAvatarLevelingEnabled
+    config.MutePetSoundsToggle = mutePetSoundsEnabled -- Add this line
     getgenv().SeisenHubConfig = config
     writefile(configFile, HttpService:JSONEncode(config))
 end
-
 -- ========== Automations =========
 
 local function disableAllAurasExcept(except)
@@ -215,11 +217,21 @@ local function startAutoFarm()
             local char = localPlayer.Character
             local myHRP = char and char:FindFirstChild("HumanoidRootPart")
 
+            if not myHRP then
+                task.wait(attackCooldown)
+                continue
+            end
+
+            -- Check if currentTarget is invalid or too far
+            local maxDistance = 50 -- Adjust this value based on game attack range
             if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
                 or not currentTarget:FindFirstChild("Humanoid")
-                or currentTarget.Humanoid.Health <= 0 then
+                or currentTarget.Humanoid.Health <= 0
+                or (currentTarget:FindFirstChild("HumanoidRootPart") and (currentTarget.HumanoidRootPart.Position - myHRP.Position).Magnitude > maxDistance) then
                 currentTarget = getNearestValidMonster()
-                if currentTarget then teleportToMonster(currentTarget) end
+                if currentTarget then
+                    teleportToMonster(currentTarget)
+                end
             end
 
             if currentTarget and myHRP then
@@ -1396,6 +1408,53 @@ RollUpgrade:AddToggle("AutoRollDemonFruitsToggle", {
         autoRollDemonFruitsEnabled = Value
         config.AutoRollDemonFruitsToggle = Value
         if Value then startAutoRollDemonFruits() end
+        saveConfig()
+    end
+})
+
+-- Disable Sound
+UnloadGroupbox:AddToggle("MutePetSoundsToggle", {
+    Text = "Mute Pet Sounds",
+    Default = mutePetSoundsEnabled,
+    Callback = function(Value)
+        mutePetSoundsEnabled = Value
+        config.MutePetSoundsToggle = Value
+        local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
+        if audioFolder then
+            -- Sounds in ReplicatedStorage > Audio
+            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll"}
+            for _, soundName in ipairs(petSounds) do
+                local sound = audioFolder:FindFirstChild(soundName)
+                if sound and sound:IsA("Sound") then
+                    if Value then
+                        if not originalVolumes[soundName] then
+                            originalVolumes[soundName] = sound.Volume
+                        end
+                        sound.Volume = 0
+                    else
+                        sound.Volume = originalVolumes[soundName] or 0.5
+                    end
+                end
+            end
+            -- Sounds in ReplicatedStorage > Audio > Merge
+            local mergeFolder = audioFolder:FindFirstChild("Merge")
+            if mergeFolder then
+                local mergeSounds = {"PetsAppearingSound", "Drumroll"}
+                for _, soundName in ipairs(mergeSounds) do
+                    local sound = mergeFolder:FindFirstChild(soundName)
+                    if sound and sound:IsA("Sound") then
+                        if Value then
+                            if not originalVolumes[soundName] then
+                                originalVolumes[soundName] = sound.Volume
+                            end
+                            sound.Volume = 0
+                        else
+                            sound.Volume = originalVolumes[soundName] or 0.5
+                        end
+                    end
+                end
+            end
+        end
         saveConfig()
     end
 })
