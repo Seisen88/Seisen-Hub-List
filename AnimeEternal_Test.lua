@@ -108,7 +108,10 @@ local mutePetSoundsEnabled = false
 local originalVolumes = {}
 local autoSpiritualPressureUpgradeEnabled = false
 local autoRollReiatsuColorEnabled = false
+local autoRollZanpakutoEnabled = false
 local config = getgenv().SeisenHubConfig or {}
+local autoCursedProgressionUpgradeEnabled = false
+local autoRollCursesEnabled = false
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
 local stats = {
@@ -167,6 +170,9 @@ autoRollReiatsuColorEnabled = config.AutoRollReiatsuColorToggle or false
 mutePetSoundsEnabled = config.MutePetSoundsToggle or false
 selectedRaritiesDisplay = config.AutoDeleteRaritiesDropdown or {}
 selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
+autoRollZanpakutoEnabled = config.AutoRollZanpakutoToggle or false
+autoCursedProgressionUpgradeEnabled = config.AutoCursedProgressionUpgradeToggle or false
+autoRollCursesEnabled = config.AutoRollCursesToggle or false
 
 -- Helper to save config
 local function saveConfig()
@@ -574,7 +580,87 @@ local function startAutoDelete()
                         ["4"] = {"70018"},
                         ["5"] = {"70019"},
                         ["6"] = {"70020"}
-                    }
+                    },
+                    ["Star_4"] = {
+                        ["1"] = {"70022"},
+                        ["2"] = {"70023"},
+                        ["3"] = {"70024"},
+                        ["4"] = {"70025"},
+                        ["5"] = {"70026"},
+                        ["6"] = {"70027"}
+                    },
+                    ["Star_5"] = {
+                        ["1"] = {"70029"},
+                        ["2"] = {"70030"},
+                        ["3"] = {"70031"},
+                        ["4"] = {"70032"},
+                        ["5"] = {"70033"},
+                        ["6"] = {"70034"}
+                    },
+                    ["Star_6"] = {
+                        ["1"] = {"70036"},
+                        ["2"] = {"70037"},
+                        ["3"] = {"70038"},
+                        ["4"] = {"70039"},
+                        ["5"] = {"70040"},
+                        ["6"] = {"70041"}
+                    },
+                    ["Star_7"] = {
+                        ["1"] = {"70043"},
+                        ["2"] = {"70044"},
+                        ["3"] = {"70045"},
+                        ["4"] = {"70046"},
+                        ["5"] = {"70047"},
+                        ["6"] = {"70048"}
+                    },
+                    ["Star_8"] = {
+                        ["1"] = {"70050"},
+                        ["2"] = {"70051"},
+                        ["3"] = {"70052"},
+                        ["4"] = {"70053"},
+                        ["5"] = {"70054"},
+                        ["6"] = {"70055"}
+                    },
+                    ["Star_9"] = {
+                        ["1"] = {"70057"},
+                        ["2"] = {"70058"},
+                        ["3"] = {"70059"},
+                        ["4"] = {"70060"},
+                        ["5"] = {"70061"},
+                        ["6"] = {"70062"}
+                    },
+                    ["Star_10"] = {
+                        ["1"] = {"70064"},
+                        ["2"] = {"70065"},
+                        ["3"] = {"70066"},
+                        ["4"] = {"70067"},
+                        ["5"] = {"70068"},
+                        ["6"] = {"70069"}
+                    },
+                    ["Star_11"] = {
+                        ["1"] = {"70071"},
+                        ["2"] = {"70072"},
+                        ["3"] = {"70073"},
+                        ["4"] = {"70074"},
+                        ["5"] = {"70075"},
+                        ["6"] = {"70076"}
+                    },
+                    ["Star_12"] = {
+                        ["1"] = {"70078"},
+                        ["2"] = {"70079"},
+                        ["3"] = {"70080"},
+                        ["4"] = {"70081"},
+                        ["5"] = {"70082"},
+                        ["6"] = {"70083"}
+                    },
+                    ["Star_13"] = {
+                        ["1"] = {"70085"},
+                        ["2"] = {"70086"},
+                        ["3"] = {"70087"},
+                        ["4"] = {"70088"},
+                        ["5"] = {"70089"},
+                        ["6"] = {"70090"}
+                    },
                 }
 
                 for star, rarities in pairs(starRarityMap) do
@@ -1035,6 +1121,97 @@ function startAutoRollReiatsuColor()
     end)
 end
 
+local function startAutoRollZanpakuto()
+    task.spawn(function()
+        -- Unlock Zanpakuto first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Zanpakuto_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollZanpakutoEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Zanpakuto",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+function startAutoCursedProgressionUpgrade()
+    task.spawn(function()
+        -- Unlock Cursed Progression first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Cursed_Progression_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep upgrading while enabled
+        while autoCursedProgressionUpgradeEnabled and getgenv().SeisenHubRunning do
+            local upgradeArgs = {
+                [1] = {
+                    ["Upgrading_Name"] = "Curse",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Cursed_Progression",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(upgradeArgs))
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+local function startAutoRollCurses()
+    task.spawn(function()
+        -- Unlock Curses first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Curses_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollCursesEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Curses",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
@@ -1062,6 +1239,9 @@ if autoAttackRangeUpgradeEnabled then startAutoAttackRangeUpgrade() end
 if autoRollReiatsuColorEnabled then startAutoRollReiatsuColor() end
 if disableNotificationsEnabled then applyNotificationsState() end
 if mutePetSoundsEnabled then applyMutePetSoundsState() end
+if autoRollZanpakutoEnabled then startAutoRollZanpakuto() end
+if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() end
+if autoRollCursesEnabled then startAutoRollCurses() end
 
 -- Auto Farm Toggle
 LeftGroupbox:AddToggle("AutoFarmToggle", {
@@ -1200,15 +1380,34 @@ RollGroupbox:AddToggle("AutoRollStarsToggle", {
     end
 })
 
+local placeToStar = {
+    ["Earth City"] = "Star_1",
+    ["Windmill Island"] = "Star_2",
+    ["Soul Society"] = "Star_3",
+    ["Cursed School"] = "Star_4",
+    ["Slayer Village"] = "Star_5",
+    ["Solo Island"] = "Star_6",
+    ["Clover Village"] = "Star_7",
+    ["Leaf Village"] = "Star_8",
+    ["Spirit Residence"] = "Star_9",
+    ["Magic_Hunter_City"] = "Star_10",
+    ["Titan Village"] = "Star_11",
+    ["Villageof Sins"] = "Star_12",
+    ["Dungeon Lobby 1"] = "Star_13"
+}
+local starToPlace = {}
+for place, star in pairs(placeToStar) do
+    starToPlace[star] = place
+end
 -- Select Star Dropdown
 RollGroupbox:AddDropdown("SelectStarDropdown", {
-    Values = {"Star_1", "Star_2", "Star_3"},
-    Default = selectedStar,
+    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island", "Soul Society", "Cursed School", "Slayer Village", "Solo Island", "Clover Village", "Leaf Village", "Spirit Residence", "Magic_Hunter_City", "Titan Village", "Villageof Sins"},
+    Default = starToPlace[selectedStar] or "Earth City",
     Multi = false,
-    Text = "Select Star",
+    Text = "Select Star (by Place)",
     Callback = function(Option)
-        selectedStar = Option
-        config.SelectStarDropdown = Option
+        selectedStar = placeToStar[Option] or "Star_1"
+        config.SelectStarDropdown = selectedStar
         saveConfig()
     end
 })
@@ -1274,6 +1473,28 @@ RollGroupbox2:AddToggle("AutoRollReiatsuColorToggle", {
     end
 })
 
+RollGroupbox2:AddToggle("AutoRollZanpakutoToggle", {
+    Text = "Auto Roll Zanpakuto",
+    Default = autoRollZanpakutoEnabled,
+    Callback = function(Value)
+        autoRollZanpakutoEnabled = Value
+        config.AutoRollZanpakutoToggle = Value
+        if Value then startAutoRollZanpakuto() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollCursesToggle", {
+    Text = "Auto Roll Curses",
+    Default = autoRollCursesEnabled,
+    Callback = function(Value)
+        autoRollCursesEnabled = Value
+        config.AutoRollCursesToggle = Value
+        if Value then startAutoRollCurses() end
+        saveConfig()
+    end
+})
+
 -- Auto Delete Settings
 AutoDeleteGroupbox:AddLabel("Auto Delete Settings")
 
@@ -1291,13 +1512,13 @@ AutoDeleteGroupbox:AddToggle("AutoDeleteUnitsToggle", {
 
 -- Select Star for Auto Delete Dropdown
 AutoDeleteGroupbox:AddDropdown("SelectDeleteStarDropdown", {
-    Values = {"Star_1", "Star_2", "Star_3"},
-    Default = selectedDeleteStar,
+    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island", "Soul Society", "Cursed School", "Slayer Village", "Solo Island", "Clover Village", "Leaf Village", "Spirit Residence", "Magic_Hunter_City", "Titan Village", "Villageof Sins"},
+    Default = starToPlace[selectedDeleteStar] or "Earth City",
     Multi = false,
-    Text = "Select Star for Auto Delete",
+    Text = "Select Star for Auto Delete (by Place)",
     Callback = function(Option)
-        selectedDeleteStar = Option
-        config.SelectDeleteStarDropdown = Option
+        selectedDeleteStar = placeToStar[Option] or "Star_1"
+        config.SelectDeleteStarDropdown = selectedDeleteStar
         saveConfig()
     end
 })
@@ -1604,6 +1825,17 @@ Upgrade2:AddToggle("AutoSpiritualPressureUpgradeToggle", {
     end
 })
 
+Upgrade2:AddToggle("AutoCursedProgressionUpgradeToggle", {
+    Text = "Auto Cursed Progression Upgrade",
+    Default = autoCursedProgressionUpgradeEnabled,
+    Callback = function(Value)
+        autoCursedProgressionUpgradeEnabled = Value
+        config.AutoCursedProgressionUpgradeToggle = Value
+        if Value then startAutoCursedProgressionUpgrade() end
+        saveConfig()
+    end
+})
+
 -- Disable Sound
 UnloadGroupbox:AddToggle("MutePetSoundsToggle", {
     Text = "Mute Pet Sounds",
@@ -1659,6 +1891,10 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoAttackRangeUpgradeEnabled = false
     autoAvatarLevelingEnabled = false
     autoSpiritualPressureUpgradeEnabled = false
+    selectedStat = false
+    autoRollZanpakutoEnabledfalse = false
+    autoCursedProgressionUpgradeEnabled = false
+    autoRollCursesEnabled = false
 
     local argsOff = {
         [1] = {
