@@ -33,9 +33,9 @@ local RollToken = MainTab:AddLeftGroupbox("Auto Roll Tokens")
 local StatsGroupbox = MainTab:AddLeftGroupbox("Auto Stats")
 local RightGroupbox = MainTab:AddRightGroupbox("Auto Roll")
 local RewardsGroupbox = MainTab:AddRightGroupbox("Auto Rewards")
-local TPD = Window:AddTab("TP & Dungeon")
-local TPGroupbox = TPD:AddLeftGroupbox("Main Teleport")
-local DungeonGroupbox = TPD:AddRightGroupbox("Dungeons")
+local TeleportTab = Window:AddTab("Teleport & Dungeon")
+local TPGroupbox = TeleportTab:AddLeftGroupbox("Main Teleport")
+local DungeonGroupbox = TeleportTab:AddRightGroupbox("Auto Dungeon")
 local UP = Window:AddTab("Upgrades")
 local UpgradeGroupbox = UP:AddLeftGroupbox("Upgrades")
 local Upgrade2 = UP:AddRightGroupbox("Upgrades 2")
@@ -83,7 +83,6 @@ local selectedStar = "Star_1"
 local selectedDeleteStar = "Star_1"
 local delayBetweenRolls = 0.5
 local selectedRarities = {}
-local previouslySelectedRarities = {}
 local autoStatsRunning = false
 local isAutoTimeRewardEnabled = false
 local isAutoDailyChestEnabled = false
@@ -97,7 +96,15 @@ local selectedStat = "Damage"
 local autoHakiUpgradeEnabled = false
 local autoRollDemonFruitsEnabled = false
 local autoAttackRangeUpgradeEnabled = false
-local config = {}
+local config = getgenv().SeisenHubConfig or {}
+local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
+
+local stats = {
+    "Damage",
+    "Energy",
+    "Coins",
+    "Luck"
+}
 
 -- Load config if file exists
 if isfile(configFile) then
@@ -147,9 +154,16 @@ selectedStat = config.AutoStatSingleDropdown or "Damage"
 autoHakiUpgradeEnabled = config.AutoHakiUpgradeToggle or false
 autoRollDemonFruitsEnabled = config.AutoRollDemonFruitsToggle or false
 autoAttackRangeUpgradeEnabled = config.AutoAttackRangeUpgradeToggle or false
+pointsPerSecond = config.PointsPerSecondSlider or 1 -- 
+selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
 -- Helper to save config
 local function saveConfig()
+    config.SelectedDungeons = selectedDungeons
+    config.AutoAssignStatToggle = autoStatsRunning
+    config.AutoStatSingleDropdown = selectedStat
+    config.PointsPerSecondSlider = pointsPerSecond -- Save new variable
+    getgenv().SeisenHubConfig = config
     writefile(configFile, HttpService:JSONEncode(config))
     print("Config saved")
 end
@@ -384,7 +398,7 @@ local function startAutoAchievements()
             Total_Energy = 20,
             Total_Coins = 15,
             Friends_Bonus = 5,
-            Time_Player = 8,
+            Time_Played = 8,
             Stars = 10,
             Defeats = 13,
             Dungeon_Easy = 5,
@@ -605,21 +619,28 @@ end
 
 local function startAutoStats()
     task.spawn(function()
-        while autoStatsRunning and getgenv().SeisenHubRunning do
-            local args = {
-                [1] = {
-                    ["Name"] = statKeyMap[selectedStat],
-                    ["Action"] = "Assign_Level_Stats",
-                    ["Amount"] = 1,
+        while task.wait(1) do
+            if autoStatsRunning and selectedStat then
+                local statMap = {
+                    Damage = "Primary_Damage",
+                    Energy = "Primary_Energy",
+                    Coins = "Primary_Coins",
+                    Luck = "Primary_Luck"
                 }
-            }
-            pcall(function()
-                ToServer:FireServer(unpack(args))
-                print("Assigned stat:", selectedStat)
-            end, function(err)
-                print("Stat assign error:", err)
-            end)
-            task.wait(0.5)
+                local args = {
+                    [1] = {
+                        ["Name"] = statMap[selectedStat] or selectedStat,
+                        ["Action"] = "Assign_Level_Stats",
+                        ["Amount"] = pointsPerSecond
+                    }
+                }
+                pcall(function()
+                    ToServer:FireServer(unpack(args))
+                    print("Assigned stat:", selectedStat, "Points:", pointsPerSecond)
+                end, function(err)
+                    print("Stat assign error:", err)
+                end)
+            end
         end
     end)
 end
@@ -727,23 +748,20 @@ end
 local function startAutoEnterDungeon()
     task.spawn(function()
         while autoEnterDungeon and getgenv().SeisenHubRunning do
-            pcall(function()
-                for dungeonName, isEnabled in pairs(selectedDungeons) do
-                    if isEnabled then
-                        local args = {
-                            [1] = {
-                                ["Action"] = "_Enter_Dungeon",
-                                ["Name"] = dungeonName
-                            }
+            for _, dungeon in ipairs(selectedDungeons) do
+                pcall(function()
+                    print("Firing dungeon entry:", dungeon)
+                    local args = {
+                        [1] = {
+                            ["Action"] = "_Enter_Dungeon",
+                            ["Name"] = dungeon
                         }
-                        ToServer:FireServer(unpack(args))
-                        print("Trying to enter dungeon:", dungeonName)
-                    end
-                end
-            end, function(err)
-                print("Dungeon enter error:", err)
-            end)
-            task.wait(2)
+                    }
+                    ToServer:FireServer(unpack(args))
+                end)
+                task.wait(1) -- 1-second delay between each dungeon attempt
+            end
+            task.wait(5) -- 5-second delay before restarting the loop
         end
     end)
 end
@@ -843,7 +861,6 @@ end
 
 function startAutoHakiUpgrade()
     task.spawn(function()
-        -- Unlock Haki first
         local unlockArgs = {
             [1] = {
                 ["Upgrading_Name"] = "Unlock",
@@ -857,7 +874,6 @@ function startAutoHakiUpgrade()
         end, function(err)
             print("Haki unlock error:", err)
         end)
-        -- Loop upgrade while enabled
         while autoHakiUpgradeEnabled and getgenv().SeisenHubRunning do
             local upgradeArgs = {
                 [1] = {
@@ -877,10 +893,8 @@ function startAutoHakiUpgrade()
     end)
 end
 
-
 function startAutoRollDemonFruits()
     task.spawn(function()
-        -- Unlock Demon Fruits first
         local unlockArgs = {
             [1] = {
                 ["Upgrading_Name"] = "Unlock",
@@ -894,7 +908,6 @@ function startAutoRollDemonFruits()
         end, function(err)
             print("Demon Fruits unlock error:", err)
         end)
-        -- Loop roll while enabled
         while autoRollDemonFruitsEnabled and getgenv().SeisenHubRunning do
             local rollArgs = {
                 [1] = {
@@ -916,7 +929,6 @@ end
 
 function startAutoAttackRangeUpgrade()
     task.spawn(function()
-        -- Unlock Attack Range first
         local unlockArgs = {
             [1] = {
                 ["Upgrading_Name"] = "Unlock",
@@ -930,7 +942,6 @@ function startAutoAttackRangeUpgrade()
         end, function(err)
             print("Attack Range unlock error:", err)
         end)
-        -- Loop upgrade while enabled
         while autoAttackRangeUpgradeEnabled and getgenv().SeisenHubRunning do
             local upgradeArgs = {
                 [1] = {
@@ -1154,14 +1165,30 @@ RightGroupbox:AddDropdown("SelectDeleteStarDropdown", {
     end
 })
 
+
 -- Auto Delete Rarities Dropdown
 RightGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
-    Values = {"1", "2", "3", "4", "5", "6"},
+    Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical"},
     Default = {},
     Multi = true,
     Text = "Select Rarities to Delete",
     Callback = function(Selected)
-        selectedRarities = Selected
+        -- Map display names to numeric rarities
+        local rarityMap = {
+            Common = "1",
+            Uncommon = "2",
+            Rare = "3",
+            Epic = "4",
+            Legendary = "5",
+            Mythical = "6"
+        }
+        local numericRarities = {}
+        for displayName, _ in pairs(Selected) do
+            if rarityMap[displayName] then
+                numericRarities[rarityMap[displayName]] = true
+            end
+        end
+        selectedRarities = numericRarities
         config.AutoDeleteRaritiesDropdown = Selected
         saveConfig()
         print("Selected rarities for auto delete:", Selected)
@@ -1177,20 +1204,27 @@ local statKeyMap = {
 }
 
 StatsGroupbox:AddDropdown("AutoStatSingleDropdown", {
-    Values = {"Damage", "Energy", "Coins", "Luck"},
+    Values = stats,
     Default = selectedStat,
     Multi = false,
-    Text = "Select Stat to Auto Assign",
-    Callback = function(Selected)
-        selectedStat = Selected
-        config.AutoStatSingleDropdown = Selected
+    Text = "Select Stat",
+    Callback = function(Value)
+        local statMap = {
+            Damage = "Primary_Damage",
+            Energy = "Primary_Energy",
+            Coins = "Primary_Coins",
+            Luck = "Primary_Luck"
+        }
+        selectedStat = statMap[Value] or Value
+        config.AutoStatSingleDropdown = selectedStat
         saveConfig()
-        print("Selected stat:", Selected)
+        print("Selected stat:", Value)
     end
 })
 
+
 StatsGroupbox:AddToggle("AutoAssignStatToggle", {
-    Text = "Auto Assign Stat",
+    Text = "Enable Auto Stat",
     Default = autoStatsRunning,
     Callback = function(Value)
         autoStatsRunning = Value
@@ -1198,6 +1232,20 @@ StatsGroupbox:AddToggle("AutoAssignStatToggle", {
         if Value then startAutoStats() end
         saveConfig()
         print("Auto Stats toggle:", Value, "for stat:", selectedStat)
+    end
+})
+
+StatsGroupbox:AddSlider("PointsPerSecondSlider", {
+    Text = "Points/Second",
+    Default = pointsPerSecond,
+    Min = 1,
+    Max = 10,
+    Rounding = 0,
+    Callback = function(Value)
+        pointsPerSecond = Value
+        config.PointsPerSecondSlider = Value
+        saveConfig()
+        print("Points per second set:", Value)
     end
 })
 
@@ -1262,7 +1310,7 @@ RewardsGroupbox:AddToggle("AutoClaimPremiumChestToggle", {
     end
 })
 
--- Teleport & Dungeon
+-- Teleport
 local teleportLocations = {
     ["Dungeon Lobby 1"] = "Dungeon_Lobby_1",
     ["Earth City"] = "Earth_City",
@@ -1297,7 +1345,7 @@ TPGroupbox:AddDropdown("MainTeleportDropdown", {
 })
 
 -- Dungeon Toggles
-local dungeonOptions = {
+local dungeonList = {
     "Dungeon_Easy",
     "Dungeon_Medium",
     "Dungeon_Hard",
@@ -1306,36 +1354,48 @@ local dungeonOptions = {
     "Leaf_Raid"
 }
 
-local selectedDungeons = {}
-for _, dungeonName in ipairs(dungeonOptions) do
-    selectedDungeons[dungeonName] = config[dungeonName .. "_Toggle"] or false
+-- Create toggles for each dungeon
+for _, dungeon in ipairs(dungeonList) do
+    local default = table.find(selectedDungeons, dungeon) ~= nil
+    DungeonGroupbox:AddToggle("Toggle_" .. dungeon, {
+        Text = dungeon:gsub("_", " "),
+        Default = default,
+        Callback = function(Value)
+            if Value then
+                if not table.find(selectedDungeons, dungeon) then
+                    table.insert(selectedDungeons, dungeon)
+                end
+            else
+                for i, v in ipairs(selectedDungeons) do
+                    if v == dungeon then
+                        table.remove(selectedDungeons, i)
+                        break
+                    end
+                end
+            end
+            config.SelectedDungeons = selectedDungeons
+            saveConfig()
+            print("Selected Dungeons:", table.concat(selectedDungeons, ", "))
+        end
+    })
 end
 
+-- Toggle: Auto enter dungeon
 DungeonGroupbox:AddToggle("AutoEnterDungeonToggle", {
-    Text = "Auto Enter Dungeon",
+    Text = "Auto Enter Dungeon(s)",
     Default = autoEnterDungeon,
     Callback = function(Value)
         autoEnterDungeon = Value
         config.AutoEnterDungeonToggle = Value
-        if Value then startAutoEnterDungeon() end
         saveConfig()
-        print("Auto Enter Dungeon toggle:", Value)
+        if Value then
+            print("Auto Dungeon enabled. Selected:", table.concat(selectedDungeons, ", "))
+            startAutoEnterDungeon()
+        else
+            print("Auto Dungeon disabled.")
+        end
     end
 })
-
-DungeonGroupbox:AddLabel("Dungeon Difficulty Toggles")
-for _, dungeonName in ipairs(dungeonOptions) do
-    DungeonGroupbox:AddToggle(dungeonName .. "_Toggle", {
-        Text = dungeonName:gsub("_", " "),
-        Default = selectedDungeons[dungeonName],
-        Callback = function(Value)
-            selectedDungeons[dungeonName] = Value
-            config[dungeonName .. "_Toggle"] = Value
-            saveConfig()
-            print("Dungeon toggle:", dungeonName, Value)
-        end
-    })
-end
 
 -- Upgrades
 local upgradeOptions = {
@@ -1375,7 +1435,6 @@ for _, upgradeName in ipairs(upgradeOptions) do
 end
 
 -- Auto Upgrade Haki
-
 Upgrade2:AddToggle("AutoHakiUpgradeToggle", {
     Text = "Auto Haki Upgrade",
     Default = autoHakiUpgradeEnabled,
@@ -1484,6 +1543,7 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoStatsRunning = false
     autoRankEnabled = false
     autoAcceptAllQuestsEnabled = false
+    autoClaimAchievementsEnabled = false
     autoRollDragonRaceEnabled = false
     autoRollSaiyanEvolutionEnabled = false
     isAutoTimeRewardEnabled = false
@@ -1536,6 +1596,7 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     getgenv().SeisenHubUI = nil
     getgenv().SeisenHubLoaded = nil
     getgenv().SeisenHubRunning = nil
+    getgenv().SeisenHubConfig = nil
     print("[Seisen Hub] Fully unloaded.")
 end)
 
