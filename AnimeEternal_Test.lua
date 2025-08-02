@@ -263,55 +263,35 @@ local function startAutoFarm()
                 continue
             end
 
-            -- Always refresh target to handle despawns
-            currentTarget = getNearestValidMonster()
-            if currentTarget then
-                teleportToMonster(currentTarget)
-            else
-                task.wait(attackCooldown)
-                continue
+            -- Check if currentTarget is invalid or too far
+            local maxDistance = 50
+            if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
+                or not currentTarget:FindFirstChild("Humanoid")
+                or currentTarget.Humanoid.Health <= 0
+                or (currentTarget:FindFirstChild("HumanoidRootPart") and (currentTarget.HumanoidRootPart.Position - myHRP.Position).Magnitude > maxDistance) then
+                currentTarget = getNearestValidMonster()
+                if currentTarget then
+                    teleportToMonster(currentTarget)
+                end
             end
 
-            local hum = currentTarget:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
-                local monsterId = currentTarget.Name -- Fallback ID
-                if currentTarget:GetAttribute("Id") then
-                    monsterId = currentTarget:GetAttribute("Id")
-                elseif currentTarget:FindFirstChild("Id") and currentTarget.Id:IsA("StringValue") then
-                    monsterId = currentTarget.Id.Value
-                end
-                print("Attempting Damage_Event with ID:", monsterId) -- Debug
-                local success = pcall(function()
-                    game:GetService("ReplicatedStorage").Events.Damage_Event:FireServer({
-                        Damages = { { Value = "5sx", Is_Critical = true, Type = "Damage" } },
-                        To = {
-                            New_Health = tostring(math.max(0, hum.Health - 5e21)), -- Prevent negative health
-                            Player = false,
-                            New_Percent = math.max(0, hum.Health / hum.MaxHealth),
-                            Id = monsterId,
-                            Is_NPC = true
-                        },
-                        From = {
-                            Id = localPlayer.UserId,
-                            Player = localPlayer
+            if currentTarget and myHRP then
+                local hrp = currentTarget:FindFirstChild("HumanoidRootPart")
+                local hum = currentTarget:FindFirstChild("Humanoid")
+
+                if hrp and hum and hum.Health > 0 then
+                    local args = {
+                        [1] = {
+                            ["Id"] = currentTarget.Name,
+                            ["Action"] = "_Mouse_Click"
                         }
-                    })
-                end)
-                if not success then
-                    print("Damage_Event failed, using _Mouse_Click")
+                    }
                     pcall(function()
-                        local args = {
-                            [1] = {
-                                ["Id"] = currentTarget.Name,
-                                ["Action"] = "_Mouse_Click",
-                                ["Is_Critical"] = true
-                            }
-                        }
                         ToServer:FireServer(unpack(args))
                     end)
                 end
             end
-            task.wait(attackCooldown) -- Use full cooldown (e.g., 0.0001) for stability
+            task.wait(attackCooldown)
         end
     end)
 end
