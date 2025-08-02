@@ -48,6 +48,7 @@ local Upgrade2 = UP:AddRightGroupbox("Upgrades 2")
 
 local UISettings = Window:AddTab("UI Settings", "settings")
 local UnloadGroupbox = UISettings:AddLeftGroupbox("Utilities")
+local RedeemGroupbox = UISettings:AddRightGroupbox("Redeem Codes")
 
 
 -- Services & Variables
@@ -1409,7 +1410,6 @@ local function startAutoRollDemonArts()
 end
 
 
-local RedeemGroupbox = UISettings:AddRightGroupbox("Redeem Codes")
 
 local redeemCodes = {
     "Update8", "JewelFix2", "240KFAV", "250KFAV", "Update8P2", "80KLIKES", "JewelFix", "12KPlayers", "13KPlayers",
