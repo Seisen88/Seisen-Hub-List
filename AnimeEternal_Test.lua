@@ -128,6 +128,7 @@ local autoObeliskEnabled = false
 local fpsBoostEnabled = false
 local selectedObeliskType = "Slayer_Obelisk"
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
+local autoRollDemonArtsEnabled = false
 
 -- Stats options (display names)
 local stats = {
@@ -201,6 +202,7 @@ antiAFKEnabled = config.AntiAFKToggle or false
 autoObeliskEnabled = config.AutoObeliskToggle or false
 selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
 fpsBoostEnabled = config.FPSBoostToggle or false
+autoRollDemonArtsEnabled = config.AutoRollDemonArtsToggle or false
 
 -- Helper to save config
 local function saveConfig()
@@ -213,6 +215,7 @@ local function saveConfig()
     config.AutoSpiritualPressureUpgradeToggle = autoSpiritualPressureUpgradeEnabled
     config.AutoRollReiatsuColorToggle = autoRollReiatsuColorEnabled
     config.FPSBoostToggle = fpsBoostEnabled
+    config.AutoRollDemonArtsToggle = autoRollDemonArtsEnabled
     getgenv().SeisenHubConfig = config
     writefile(configFile, HttpService:JSONEncode(config))
 end
@@ -1405,6 +1408,37 @@ local function applyFPSBoostState()
 end
 
 
+local function startAutoRollDemonArts()
+    task.spawn(function()
+        -- Unlock Demon Arts first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Demon_Arts_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollDemonArtsEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Demon_Arts",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
@@ -1437,6 +1471,7 @@ if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() 
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
 if fpsBoostEnabled then applyFPSBoostState() end
+if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
 if antiAFKEnabled then
     getgenv().SeisenHubAntiAFK = true
     if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
@@ -1714,6 +1749,17 @@ RollGroupbox2:AddToggle("AutoRollCursesToggle", {
         autoRollCursesEnabled = Value
         config.AutoRollCursesToggle = Value
         if Value then startAutoRollCurses() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollDemonArtsToggle", {
+    Text = "Auto Roll Demon Arts",
+    Default = autoRollDemonArtsEnabled,
+    Callback = function(Value)
+        autoRollDemonArtsEnabled = Value
+        config.AutoRollDemonArtsToggle = Value
+        if Value then startAutoRollDemonArts() end
         saveConfig()
     end
 })
@@ -2141,6 +2187,7 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoObeliskEnabled = false
     selectedObeliskType = false
     antiAFKEnabled = false
+    autoRollDemonArtsEnabled = false
     disconnectFPSBoostConnections()
     getgenv().SeisenHubAntiAFK = false
     if getgenv().SeisenHubAntiAFKConn then
