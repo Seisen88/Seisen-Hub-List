@@ -124,6 +124,8 @@ local config = getgenv().SeisenHubConfig or {}
 local autoCursedProgressionUpgradeEnabled = false
 local antiAFKEnabled = false
 local autoRollCursesEnabled = false
+local autoObeliskEnabled = false
+local selectedObeliskType = "Slayer_Obelisk"
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
 -- Stats options (display names)
@@ -195,6 +197,8 @@ autoRollZanpakutoEnabled = config.AutoRollZanpakutoToggle or false
 autoCursedProgressionUpgradeEnabled = config.AutoCursedProgressionUpgradeToggle or false
 autoRollCursesEnabled = config.AutoRollCursesToggle or false
 antiAFKEnabled = config.AntiAFKToggle or false
+autoObeliskEnabled = config.AutoObeliskToggle or false
+selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
 
 -- Helper to save config
 local function saveConfig()
@@ -1261,6 +1265,20 @@ local function startAutoRollCurses()
     end)
 end
 
+function startAutoObelisk()
+    task.spawn(function()
+        while autoObeliskEnabled and getgenv().SeisenHubRunning do
+            pcall(function()
+                ToServer:FireServer({
+                    Upgrading_Name = "Obelisk",
+                    Action = "_Upgrades",
+                    Upgrade_Name = selectedObeliskType
+                })
+            end)
+            task.wait(1)
+        end
+    end)
+end
 
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
@@ -1292,6 +1310,7 @@ if mutePetSoundsEnabled then applyMutePetSoundsState() end
 if autoRollZanpakutoEnabled then startAutoRollZanpakuto() end
 if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() end
 if autoRollCursesEnabled then startAutoRollCurses() end
+if autoObeliskEnabled then startAutoObelisk() end
 if antiAFKEnabled then
     getgenv().SeisenHubAntiAFK = true
     if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
@@ -1403,6 +1422,35 @@ LeftGroupbox:AddToggle("AutoClaimAchievement", {
         autoClaimAchievementsEnabled = Value
         config.AutoClaimAchievement = Value
         if Value then startAutoAchievements() end
+        saveConfig()
+    end
+})
+
+LeftGroupbox:AddToggle("AutoObeliskToggle", {
+    Text = "Auto Obelisk Upgrade",
+    Default = autoObeliskEnabled,
+    Callback = function(Value)
+        autoObeliskEnabled = Value
+        config.AutoObeliskToggle = Value
+        saveConfig()
+        if Value then
+            startAutoObelisk()
+        end
+    end
+})
+
+LeftGroupbox:AddDropdown("SelectedObeliskType", {
+    Values = {
+    ["Dragon_Obelisk"] = "Earth City",
+    ["Slayer_Obelisk"] = "Slayer Village",
+    ["Pirate_Obelisk"] = "Windmill Island"
+},
+    Default = selectedObeliskType,
+    Multi = false,
+    Text = "Select Obelisk Type",
+    Callback = function(Value)
+        selectedObeliskType = Value
+        config.SelectedObeliskType = Value
         saveConfig()
     end
 })
@@ -1969,6 +2017,8 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoRollZanpakutoEnabledfalse = false
     autoCursedProgressionUpgradeEnabled = false
     autoRollCursesEnabled = false
+    autoObeliskEnabled = false
+    selectedObeliskType = false
 antiAFKEnabled = false
 getgenv().SeisenHubAntiAFK = false
 if getgenv().SeisenHubAntiAFKConn then
