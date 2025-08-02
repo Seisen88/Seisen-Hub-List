@@ -263,7 +263,6 @@ local function startAutoFarm()
                 continue
             end
 
-            -- Check if currentTarget is invalid or too far
             local maxDistance = 50
             if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
                 or not currentTarget:FindFirstChild("Humanoid")
@@ -276,22 +275,47 @@ local function startAutoFarm()
             end
 
             if currentTarget and myHRP then
-                local hrp = currentTarget:FindFirstChild("HumanoidRootPart")
                 local hum = currentTarget:FindFirstChild("Humanoid")
-
-                if hrp and hum and hum.Health > 0 then
-                    local args = {
-                        [1] = {
-                            ["Id"] = currentTarget.Name,
-                            ["Action"] = "_Mouse_Click"
-                        }
-                    }
-                    pcall(function()
-                        ToServer:FireServer(unpack(args))
+                if hum and hum.Health > 0 then
+                    local monsterId = currentTarget.Name -- Fallback ID
+                    if currentTarget:GetAttribute("Id") then
+                        monsterId = currentTarget:GetAttribute("Id")
+                    elseif currentTarget:FindFirstChild("Id") and currentTarget.Id:IsA("StringValue") then
+                        monsterId = currentTarget.Id.Value
+                    end
+                    print("Attempting Damage_Event with ID:", monsterId) -- Debug
+                    local success = pcall(function()
+                        game:GetService("ReplicatedStorage").Events.Damage_Event:FireServer({
+                            Damages = { { Value = "5sx", Is_Critical = true, Type = "Damage" } },
+                            To = {
+                                New_Health = tostring(hum.Health - 5e21), -- Adjust based on current health
+                                Player = false,
+                                New_Percent = hum.Health / hum.MaxHealth,
+                                Id = monsterId,
+                                Is_NPC = true
+                            },
+                            From = {
+                                Id = localPlayer.UserId,
+                                Player = localPlayer
+                            }
+                        })
                     end)
+                    if not success then
+                        print("Damage_Event failed, using _Mouse_Click")
+                        pcall(function()
+                            local args = {
+                                [1] = {
+                                    ["Id"] = currentTarget.Name,
+                                    ["Action"] = "_Mouse_Click",
+                                    ["Is_Critical"] = true
+                                }
+                            }
+                            ToServer:FireServer(unpack(args))
+                        end)
+                    end
                 end
             end
-            task.wait(attackCooldown)
+            task.wait(attackCooldown / 2) -- Faster attacks (e.g., 0.00005)
         end
     end)
 end
@@ -519,9 +543,9 @@ local function startAutoRollDragonRace()
     end)
 end
 
-local function startAutoRollSaiyanEvolution()
+function startAutoRollSaiyanEvolution()
     task.spawn(function()
-        -- Unlock Saiyan Evolution first (only once)
+        -- Unlock Saiyan Evolution first
         local unlockArgs = {
             [1] = {
                 ["Upgrading_Name"] = "Unlock",
@@ -531,7 +555,10 @@ local function startAutoRollSaiyanEvolution()
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
+            print("Saiyan Evolution unlock request sent") -- Debug
         end)
+        -- Wait to ensure unlock is processed
+        task.wait(2) -- Adjust delay if needed based on server response time
         -- Now keep rolling while enabled
         while getgenv().SeisenHubRunning and autoRollSaiyanEvolutionEnabled do
             local args = {
@@ -1106,16 +1133,29 @@ end)
 
 function startAutoSpiritualPressureUpgrade()
     task.spawn(function()
+        -- Unlock Spiritual Pressure first
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Spiritual_Pressure_Unlock"
+            }
+        }
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(unlockArgs))
+        end)
+        -- Wait to ensure unlock is processed
+        task.wait(2) -- Adjust delay if needed based on server response time
         while autoSpiritualPressureUpgradeEnabled and getgenv().SeisenHubRunning do
-            local args = {
+            local upgradeArgs = {
                 [1] = {
                     ["Upgrading_Name"] = "Spiritual_Pressure",
                     ["Action"] = "_Upgrades",
-                    ["Upgrade_Name"] = "Spiritual_Pressure",
+                    ["Upgrade_Name"] = "Spiritual_Pressure"
                 }
             }
             pcall(function()
-                ToServer:FireServer(unpack(args))
+                game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(upgradeArgs))
             end)
             task.wait(2)
         end
