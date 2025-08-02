@@ -63,7 +63,7 @@ local monstersFolder = Workspace:WaitForChild("Debris", 9e9):WaitForChild("Monst
 local localPlayer = Players.LocalPlayer
 local teleportOffset = Vector3.new(0, 0, -3)
 
-local attackCooldown = 0
+local attackCooldown = 0.1
 local currentTarget = nil
 
 if not getgenv().SeisenHubAntiAFK then
@@ -338,9 +338,20 @@ local function startFastKillAura()
                     end)
                 end
             end
-            task.wait(0.01)
+            task.wait(0.1)
         end
     end)
+end
+
+local lastScan = 0
+local scanInterval = 0.3 -- scan every 0.3 seconds
+
+local function getNearestMonsterThrottled()
+    if tick() - lastScan > scanInterval then
+        lastScan = tick()
+        currentTarget = getNearestValidMonster()
+    end
+    return currentTarget
 end
 
 local function startSlowKillAura()
@@ -374,7 +385,7 @@ local function startSlowKillAura()
                     end)
                 end
             end
-            task.wait(0.05)
+            task.wait(0.2)
         end
     end)
 end
@@ -1296,117 +1307,75 @@ function startAutoObelisk()
 end
 
 
-local fpsBoostConnections = {}
-local originalGraphicsSettings = {}
-local originalPartStates = {}
+local isFPSBoosted = false
 
-local function disconnectFPSBoostConnections()
-    for _, conn in ipairs(fpsBoostConnections) do
-        pcall(function() conn:Disconnect() end)
+-- 🧠 FPS Boost Logic
+local function enableFPSBoost()
+    if game:FindFirstChild("Lighting") then
+        local Lighting = game.Lighting
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100000
+        Lighting.Brightness = 1
     end
-    fpsBoostConnections = {}
-end
 
+    if workspace:FindFirstChild("Terrain") then
+        workspace.Terrain.WaterWaveSize = 0
+        workspace.Terrain.WaterWaveSpeed = 0
+        workspace.Terrain.WaterReflectance = 0
+        workspace.Terrain.WaterTransparency = 1
+    end
 
-local function setFPSBoostOnParts(enable)
-    local descendants = workspace:GetDescendants()
-    local batchSize = 100
-    local i = 1
-    local total = #descendants
-
-    local function processBatch()
-        for j = 1, batchSize do
-            if i > total then return end
-            local v = descendants[i]
-            if enable then
-                -- Save original state before changing
-                if v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                    if originalPartStates[v] == nil then
-                        originalPartStates[v] = {Enabled = v.Enabled}
-                    end
-                    v.Enabled = false
-                elseif v:IsA("Explosion") then
-                    if originalPartStates[v] == nil then
-                        originalPartStates[v] = {Visible = v.Visible}
-                    end
-                    v.Visible = false
-                elseif v:IsA("Decal") then
-                    if originalPartStates[v] == nil then
-                        originalPartStates[v] = {Transparency = v.Transparency}
-                    end
-                    v.Transparency = 1
-                end
-            else
-                -- Restore original state if saved
-                local state = originalPartStates[v]
-                if state then
-                    if v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                        v.Enabled = state.Enabled
-                    elseif v:IsA("Explosion") then
-                        v.Visible = state.Visible
-                    elseif v:IsA("Decal") then
-                        v.Transparency = state.Transparency
-                    end
-                    originalPartStates[v] = nil
-                end
-            end
-            i = i + 1
-        end
-        if i <= total then
-            task.defer(processBatch)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Transparency = 1
         end
     end
 
-    processBatch()
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = false
+        end
+    end
+
+    if settings().Rendering then
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end
 end
 
+local function disableFPSBoost()
+    if game:FindFirstChild("Lighting") then
+        local Lighting = game.Lighting
+        Lighting.GlobalShadows = true
+        Lighting.FogEnd = 1000
+        Lighting.Brightness = 2
+    end
+
+    if workspace:FindFirstChild("Terrain") then
+        workspace.Terrain.WaterWaveSize = 0.1
+        workspace.Terrain.WaterWaveSpeed = 10
+        workspace.Terrain.WaterReflectance = 1
+        workspace.Terrain.WaterTransparency = 0.5
+    end
+
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = true
+        end
+    end
+
+    if settings().Rendering then
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+    end
+end
+
+-- Main toggle function
 local function applyFPSBoostState()
-    disconnectFPSBoostConnections()
     if fpsBoostEnabled then
-        -- Save original settings
-        if not originalGraphicsSettings.QualityLevel and settings().Rendering then
-            originalGraphicsSettings.QualityLevel = settings().Rendering.QualityLevel
-        end
-        if not originalGraphicsSettings.FogEnd then
-            originalGraphicsSettings.FogEnd = game:GetService("Lighting").FogEnd
-        end
-        if not originalGraphicsSettings.Brightness then
-            originalGraphicsSettings.Brightness = game:GetService("Lighting").Brightness
-        end
-        -- Lower graphics settings for FPS boost
-        if settings().Rendering then
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        end
-        game:GetService("Lighting").FogEnd = 100
-        game:GetService("Lighting").Brightness = 1
-        -- Apply to existing parts in batches
-        setFPSBoostOnParts(true)
-        -- Listen for new parts and apply FPS boost to them
-        table.insert(fpsBoostConnections, workspace.DescendantAdded:Connect(function(v)
-            if v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v.Enabled = false
-            elseif v:IsA("Explosion") then
-                v.Visible = false
-            elseif v:IsA("Decal") then
-                v.Transparency = 1
-            end
-        end))
+        enableFPSBoost()
     else
-        -- Restore original settings
-        if settings().Rendering and originalGraphicsSettings.QualityLevel then
-            settings().Rendering.QualityLevel = originalGraphicsSettings.QualityLevel
-        end
-        if originalGraphicsSettings.FogEnd then
-            game:GetService("Lighting").FogEnd = originalGraphicsSettings.FogEnd
-        end
-        if originalGraphicsSettings.Brightness then
-            game:GetService("Lighting").Brightness = originalGraphicsSettings.Brightness
-        end
-        -- Restore in batches
-        setFPSBoostOnParts(false)
+        disableFPSBoost()
     end
 end
-
 
 local function startAutoRollDemonArts()
     task.spawn(function()
@@ -1470,7 +1439,6 @@ if autoRollZanpakutoEnabled then startAutoRollZanpakuto() end
 if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() end
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
-if fpsBoostEnabled then applyFPSBoostState() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
 if antiAFKEnabled then
     getgenv().SeisenHubAntiAFK = true
@@ -2188,7 +2156,6 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     selectedObeliskType = false
     antiAFKEnabled = false
     autoRollDemonArtsEnabled = false
-    disconnectFPSBoostConnections()
     getgenv().SeisenHubAntiAFK = false
     if getgenv().SeisenHubAntiAFKConn then
         pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
