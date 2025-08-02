@@ -125,6 +125,7 @@ local autoCursedProgressionUpgradeEnabled = false
 local antiAFKEnabled = false
 local autoRollCursesEnabled = false
 local autoObeliskEnabled = false
+local fpsBoostEnabled = false
 local selectedObeliskType = "Slayer_Obelisk"
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
@@ -199,6 +200,7 @@ autoRollCursesEnabled = config.AutoRollCursesToggle or false
 antiAFKEnabled = config.AntiAFKToggle or false
 autoObeliskEnabled = config.AutoObeliskToggle or false
 selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
+fpsBoostEnabled = config.FPSBoostToggle or false
 
 -- Helper to save config
 local function saveConfig()
@@ -210,6 +212,7 @@ local function saveConfig()
     config.MutePetSoundsToggle = mutePetSoundsEnabled
     config.AutoSpiritualPressureUpgradeToggle = autoSpiritualPressureUpgradeEnabled
     config.AutoRollReiatsuColorToggle = autoRollReiatsuColorEnabled
+    config.FPSBoostToggle = fpsBoostEnabled
     getgenv().SeisenHubConfig = config
     writefile(configFile, HttpService:JSONEncode(config))
 end
@@ -290,7 +293,8 @@ local function startAutoFarm()
                     local args = {
                         [1] = {
                             ["Id"] = currentTarget.Name,
-                            ["Action"] = "_Mouse_Click"
+                            ["Action"] = "_Mouse_Click",
+                            ["Critical"] = true
                         }
                     }
                     pcall(function()
@@ -1267,18 +1271,139 @@ end
 
 function startAutoObelisk()
     task.spawn(function()
+        local obeliskTypes = {
+            "Dragon_Obelisk",
+            "Slayer_Obelisk",
+            "Pirate_Obelisk"
+        }
         while autoObeliskEnabled and getgenv().SeisenHubRunning do
-            pcall(function()
-                ToServer:FireServer({
-                    Upgrading_Name = "Obelisk",
-                    Action = "_Upgrades",
-                    Upgrade_Name = selectedObeliskType
-                })
-            end)
+            for _, obeliskType in ipairs(obeliskTypes) do
+                pcall(function()
+                    ToServer:FireServer({
+                        Upgrading_Name = "Obelisk",
+                        Action = "_Upgrades",
+                        Upgrade_Name = obeliskType
+                    })
+                end)
+                task.wait(0.2)
+            end
             task.wait(1)
         end
     end)
 end
+
+
+local fpsBoostConnections = {}
+local originalGraphicsSettings = {}
+local originalPartStates = {}
+
+local function disconnectFPSBoostConnections()
+    for _, conn in ipairs(fpsBoostConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    fpsBoostConnections = {}
+end
+
+
+local function setFPSBoostOnParts(enable)
+    local descendants = workspace:GetDescendants()
+    local batchSize = 100
+    local i = 1
+    local total = #descendants
+
+    local function processBatch()
+        for j = 1, batchSize do
+            if i > total then return end
+            local v = descendants[i]
+            if enable then
+                -- Save original state before changing
+                if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                    if originalPartStates[v] == nil then
+                        originalPartStates[v] = {Enabled = v.Enabled}
+                    end
+                    v.Enabled = false
+                elseif v:IsA("Explosion") then
+                    if originalPartStates[v] == nil then
+                        originalPartStates[v] = {Visible = v.Visible}
+                    end
+                    v.Visible = false
+                elseif v:IsA("Decal") then
+                    if originalPartStates[v] == nil then
+                        originalPartStates[v] = {Transparency = v.Transparency}
+                    end
+                    v.Transparency = 1
+                end
+            else
+                -- Restore original state if saved
+                local state = originalPartStates[v]
+                if state then
+                    if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                        v.Enabled = state.Enabled
+                    elseif v:IsA("Explosion") then
+                        v.Visible = state.Visible
+                    elseif v:IsA("Decal") then
+                        v.Transparency = state.Transparency
+                    end
+                    originalPartStates[v] = nil
+                end
+            end
+            i = i + 1
+        end
+        if i <= total then
+            task.defer(processBatch)
+        end
+    end
+
+    processBatch()
+end
+
+local function applyFPSBoostState()
+    disconnectFPSBoostConnections()
+    if fpsBoostEnabled then
+        -- Save original settings
+        if not originalGraphicsSettings.QualityLevel and settings().Rendering then
+            originalGraphicsSettings.QualityLevel = settings().Rendering.QualityLevel
+        end
+        if not originalGraphicsSettings.FogEnd then
+            originalGraphicsSettings.FogEnd = game:GetService("Lighting").FogEnd
+        end
+        if not originalGraphicsSettings.Brightness then
+            originalGraphicsSettings.Brightness = game:GetService("Lighting").Brightness
+        end
+        -- Lower graphics settings for FPS boost
+        if settings().Rendering then
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end
+        game:GetService("Lighting").FogEnd = 100
+        game:GetService("Lighting").Brightness = 1
+        -- Apply to existing parts in batches
+        setFPSBoostOnParts(true)
+        -- Listen for new parts and apply FPS boost to them
+        table.insert(fpsBoostConnections, workspace.DescendantAdded:Connect(function(v)
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = false
+            elseif v:IsA("Explosion") then
+                v.Visible = false
+            elseif v:IsA("Decal") then
+                v.Transparency = 1
+            end
+        end))
+    else
+        -- Restore original settings
+        if settings().Rendering and originalGraphicsSettings.QualityLevel then
+            settings().Rendering.QualityLevel = originalGraphicsSettings.QualityLevel
+        end
+        if originalGraphicsSettings.FogEnd then
+            game:GetService("Lighting").FogEnd = originalGraphicsSettings.FogEnd
+        end
+        if originalGraphicsSettings.Brightness then
+            game:GetService("Lighting").Brightness = originalGraphicsSettings.Brightness
+        end
+        -- Restore in batches
+        setFPSBoostOnParts(false)
+    end
+end
+
 
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
@@ -1311,6 +1436,7 @@ if autoRollZanpakutoEnabled then startAutoRollZanpakuto() end
 if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() end
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
+if fpsBoostEnabled then applyFPSBoostState() end
 if antiAFKEnabled then
     getgenv().SeisenHubAntiAFK = true
     if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
@@ -1439,21 +1565,7 @@ LeftGroupbox:AddToggle("AutoObeliskToggle", {
     end
 })
 
-LeftGroupbox:AddDropdown("SelectedObeliskType", {
-    Values = {
-    ["Dragon_Obelisk"] = "Earth City",
-    ["Slayer_Obelisk"] = "Slayer Village",
-    ["Pirate_Obelisk"] = "Windmill Island"
-},
-    Default = selectedObeliskType,
-    Multi = false,
-    Text = "Select Obelisk Type",
-    Callback = function(Value)
-        selectedObeliskType = Value
-        config.SelectedObeliskType = Value
-        saveConfig()
-    end
-})
+
 
 -- Auto Roll Dragon Race Toggle
 RollGroupbox2:AddToggle("AutoRollDragonRaceToggle", {
@@ -1982,9 +2094,18 @@ UnloadGroupbox:AddToggle("AntiAFKToggle", {
     end
 })
 
-UnloadGroupbox:AddButton("Save Config", function()
-    saveConfig()
-end)
+
+UnloadGroupbox:AddToggle("FPSBoostToggle", {
+    Text = "FPS Boost (Lower Graphics)",
+    Default = fpsBoostEnabled,
+    Callback = function(Value)
+        fpsBoostEnabled = Value
+        config.FPSBoostToggle = Value
+        applyFPSBoostState()
+        saveConfig()
+    end
+})
+
 
 UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     getgenv().SeisenHubRunning = false
@@ -2019,12 +2140,13 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoRollCursesEnabled = false
     autoObeliskEnabled = false
     selectedObeliskType = false
-antiAFKEnabled = false
-getgenv().SeisenHubAntiAFK = false
-if getgenv().SeisenHubAntiAFKConn then
-    pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
-    getgenv().SeisenHubAntiAFKConn = nil
-end
+    antiAFKEnabled = false
+    disconnectFPSBoostConnections()
+    getgenv().SeisenHubAntiAFK = false
+    if getgenv().SeisenHubAntiAFKConn then
+        pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
+        getgenv().SeisenHubAntiAFKConn = nil
+    end
 
     local argsOff = {
         [1] = {
