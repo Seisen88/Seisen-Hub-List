@@ -710,9 +710,14 @@ local function startAutoStats()
     task.spawn(function()
         while task.wait(1) do
             if autoStatsRunning and selectedStat then
+                local statName = statMap[selectedStat]
+                if not statName then
+                    warn("Invalid stat selected:", selectedStat)
+                    return
+                end
                 local args = {
                     [1] = {
-                        ["Name"] = statMap[selectedStat] or selectedStat,
+                        ["Name"] = statName,
                         ["Action"] = "Assign_Level_Stats",
                         ["Amount"] = pointsPerSecond
                     }
@@ -724,7 +729,6 @@ local function startAutoStats()
         end
     end)
 end
-
 local function startAutoTimeReward()
     task.spawn(function()
         while isAutoTimeRewardEnabled and getgenv().SeisenHubRunning do
