@@ -129,6 +129,7 @@ local fpsBoostEnabled = false
 local selectedObeliskType = "Slayer_Obelisk"
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 local autoRollDemonArtsEnabled = false
+local autoRedeemCodesEnabled = false
 
 -- Stats options (display names)
 local stats = {
@@ -1408,6 +1409,36 @@ local function startAutoRollDemonArts()
 end
 
 
+local RedeemGroupbox = UISettings:AddRightGroupbox("Redeem Codes")
+
+local redeemCodes = {
+    "Update8", "JewelFix2", "240KFAV", "250KFAV", "Update8P2", "80KLIKES", "JewelFix", "12KPlayers", "13KPlayers",
+    "14KPlayers", "Update8P1", "75KLIKES", "Update8", "70KLIKES", "11KPlayers", "230KFAV", "13MVISITS", "BugFixesUp7",
+    "10KPlayers", "ObeliskBug", "Update7Part2", "220KFav", "12MVISITS", "65KLikes", "9KPlayers", "Update7Part1",
+    "60KLIKES", "55KLIKES", "8KPlayers", "10MVISITS", "210KFav", "50KLikes", "195KAV", "200KFAV", "Update6QoL",
+    "Refresh", "175KFAV", "Update6", "5MVisits", "6MVisits", "190KFAV", "Update5Part2", "45KLIKES", "140KFAV",
+    "160KFAV", "4MVisits", "SorryForShutdown3", "SomeBugFix1", "40KLikes", "Update5Part1", "30KLIKES", "125KFAV",
+    "7KPlayers", "35KLIKES", "SorryForShutdown2", "SorryForSouls", "3MVISITS", "SorryForDelay2", "60KFav", "75KFav",
+    "2MVisits", "Update3Part2", "20KLikes", "SorryForDelay1", "6KPlayers", "Update4", "25KLIKES", "100KFAV"
+}
+
+local function redeemAllCodes()
+    print("Redeeming codes...") -- debug
+    for _, code in ipairs(redeemCodes) do
+        print("Redeeming:", code) -- debug
+        local args = {
+            [1] = {
+                ["Action"] = "_Redeem_Code",
+                ["Text"] = code,
+            }
+        }
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(args))
+        end)
+        task.wait(0.5)
+    end
+end
+
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
@@ -2117,6 +2148,18 @@ UnloadGroupbox:AddToggle("FPSBoostToggle", {
         config.FPSBoostToggle = Value
         applyFPSBoostState()
         saveConfig()
+    end
+})
+
+
+RedeemGroupbox:AddToggle("AutoRedeemCodesToggle", {
+    Text = "Auto Redeem All Codes",
+    Default = autoRedeemCodesEnabled,
+    Callback = function(Value)
+        autoRedeemCodesEnabled = Value
+        if Value then
+            task.spawn(redeemAllCodes)
+        end
     end
 })
 
