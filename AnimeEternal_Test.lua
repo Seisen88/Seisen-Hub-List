@@ -63,7 +63,7 @@ local monstersFolder = Workspace:WaitForChild("Debris", 9e9):WaitForChild("Monst
 local localPlayer = Players.LocalPlayer
 local teleportOffset = Vector3.new(0, 0, -3)
 
-local attackCooldown = 0.0001
+local attackCooldown = 0
 local currentTarget = nil
 
 if not getgenv().SeisenHubAntiAFK then
@@ -122,6 +122,7 @@ local autoRollReiatsuColorEnabled = false
 local autoRollZanpakutoEnabled = false
 local config = getgenv().SeisenHubConfig or {}
 local autoCursedProgressionUpgradeEnabled = false
+local antiAFKEnabled = false
 local autoRollCursesEnabled = false
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
@@ -193,6 +194,7 @@ selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 autoRollZanpakutoEnabled = config.AutoRollZanpakutoToggle or false
 autoCursedProgressionUpgradeEnabled = config.AutoCursedProgressionUpgradeToggle or false
 autoRollCursesEnabled = config.AutoRollCursesToggle or false
+antiAFKEnabled = config.AntiAFKToggle or false
 
 -- Helper to save config
 local function saveConfig()
@@ -273,6 +275,7 @@ local function startAutoFarm()
                 if currentTarget then
                     teleportToMonster(currentTarget)
                 end
+                continue
             end
 
             if currentTarget and myHRP then
@@ -1289,6 +1292,19 @@ if mutePetSoundsEnabled then applyMutePetSoundsState() end
 if autoRollZanpakutoEnabled then startAutoRollZanpakuto() end
 if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() end
 if autoRollCursesEnabled then startAutoRollCurses() end
+if antiAFKEnabled then
+    getgenv().SeisenHubAntiAFK = true
+    if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
+        getgenv().SeisenHubAntiAFKConn = task.spawn(function()
+            while antiAFKEnabled and getgenv().SeisenHubRunning do
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(0.1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(10)
+            end
+        end)
+    end
+end
 
 -- Auto Farm Toggle
 LeftGroupbox:AddToggle("AutoFarmToggle", {
@@ -1893,6 +1909,31 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
     end
 })
 
+
+-- Add this toggle to your UI settings groupbox
+UnloadGroupbox:AddToggle("AntiAFKToggle", {
+    Text = "Enable Anti-AFK (left click every 10s)",
+    Default = antiAFKEnabled,
+    Callback = function(Value)
+        antiAFKEnabled = Value
+        getgenv().SeisenHubAntiAFK = Value
+        config.AntiAFKToggle = Value
+        saveConfig()
+        if Value then
+            if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
+                getgenv().SeisenHubAntiAFKConn = task.spawn(function()
+                    while antiAFKEnabled and getgenv().SeisenHubRunning do
+                        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                        task.wait(0.1)
+                        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                        task.wait(10)
+                    end
+                end)
+            end
+        end
+    end
+})
+
 UnloadGroupbox:AddButton("Save Config", function()
     saveConfig()
 end)
@@ -1928,6 +1969,12 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoRollZanpakutoEnabledfalse = false
     autoCursedProgressionUpgradeEnabled = false
     autoRollCursesEnabled = false
+antiAFKEnabled = false
+getgenv().SeisenHubAntiAFK = false
+if getgenv().SeisenHubAntiAFKConn then
+    pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
+    getgenv().SeisenHubAntiAFKConn = nil
+end
 
     local argsOff = {
         [1] = {
