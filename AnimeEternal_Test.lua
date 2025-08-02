@@ -20,7 +20,7 @@ local Window = Library:CreateWindow({
     ToggleKeybind = Enum.KeyCode.RightControl,
     Center = true,
     AutoShow = true,
-    MobileButtonsSide = "Right"
+    MobileButtonsSide = "Left"
 })
 
 -- Store ScreenGui for cleanup
@@ -114,11 +114,20 @@ local autoCursedProgressionUpgradeEnabled = false
 local autoRollCursesEnabled = false
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 
+-- Stats options (display names)
 local stats = {
     "Damage",
     "Energy",
     "Coins",
     "Luck"
+}
+
+-- Internal stat mapping
+local statMap = {
+    Damage = "Primary_Damage",
+    Energy = "Primary_Energy",
+    Coins = "Primary_Coins",
+    Luck = "Primary_Luck"
 }
 
 -- Load config if file exists
@@ -710,6 +719,10 @@ local function startAutoStats()
     task.spawn(function()
         while task.wait(1) do
             if autoStatsRunning and selectedStat then
+                if not statMap then
+                    warn("statMap is nil!")
+                    return
+                end
                 local statName = statMap[selectedStat]
                 if not statName then
                     warn("Invalid stat selected:", selectedStat)
@@ -729,6 +742,7 @@ local function startAutoStats()
         end
     end)
 end
+
 local function startAutoTimeReward()
     task.spawn(function()
         while isAutoTimeRewardEnabled and getgenv().SeisenHubRunning do
@@ -1565,21 +1579,7 @@ AutoDeleteGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
 })
 
 -- Auto Stats
--- Stats options (display names)
-local stats = {
-    "Damage",
-    "Energy",
-    "Coins",
-    "Luck"
-}
 
--- Internal stat mapping
-local statMap = {
-    Damage = "Primary_Damage",
-    Energy = "Primary_Energy",
-    Coins = "Primary_Coins",
-    Luck = "Primary_Luck"
-}
 
 
 StatsGroupbox:AddDropdown("AutoStatSingleDropdown", {
