@@ -54,6 +54,8 @@ local UnloadGroupbox = UISettings:AddLeftGroupbox("Utilities")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
 
 local ToServer = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9)
 local monstersFolder = Workspace:WaitForChild("Debris", 9e9):WaitForChild("Monsters", 9e9)
@@ -63,6 +65,15 @@ local teleportOffset = Vector3.new(0, 0, -3)
 
 local attackCooldown = 0.0001
 local currentTarget = nil
+
+if not getgenv().SeisenHubAntiAFK then
+    getgenv().SeisenHubAntiAFK = true
+    Players.LocalPlayer.Idled:Connect(function()
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end)
+end
 
 local configFolder = "SeisenHub"
 local configFile = configFolder .. "/seisen_hub_AE.txt"
