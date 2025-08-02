@@ -71,9 +71,9 @@ local currentTarget = nil
 if not getgenv().SeisenHubAntiAFK then
     getgenv().SeisenHubAntiAFK = true
     Players.LocalPlayer.Idled:Connect(function()
-        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
         task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     end)
 end
 
@@ -1546,9 +1546,9 @@ if antiAFKEnabled then
     if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
         getgenv().SeisenHubAntiAFKConn = task.spawn(function()
             while antiAFKEnabled and getgenv().SeisenHubRunning do
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                 task.wait(0.1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                 task.wait(10)
             end
         end)
@@ -2228,9 +2228,9 @@ UnloadGroupbox:AddToggle("AntiAFKToggle", {
             if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
                 getgenv().SeisenHubAntiAFKConn = task.spawn(function()
                     while antiAFKEnabled and getgenv().SeisenHubRunning do
-                        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                        VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                         task.wait(0.1)
-                        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                        VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                         task.wait(10)
                     end
                 end)
