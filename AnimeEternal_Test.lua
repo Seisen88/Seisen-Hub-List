@@ -40,7 +40,8 @@ local DungeonGroupbox = TeleportTab:AddRightGroupbox("Auto Dungeon")
 local Roll = Window:AddTab("Rolls", "dice-5")
 local RollGroupbox = Roll:AddLeftGroupbox("Auto Rolls")
 local RollGroupbox2 = Roll:AddLeftGroupbox("Auto Roll Tokens")
-local AutoDeleteGroupbox = Roll:AddRightGroupbox("Auto Delete")
+local AutoDeleteGroupbox = Roll:AddRightGroupbox("Auto Delete Stars")
+local AutoDeleteGroupbox2 = Roll:AddRightGroupbox("Auto Delete Sword")
 
 local UP = Window:AddTab("Upgrades", "arrow-up")
 local UpgradeGroupbox = UP:AddLeftGroupbox("Upgrades")
@@ -131,6 +132,7 @@ local selectedObeliskType = "Slayer_Obelisk"
 local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 local autoRollDemonArtsEnabled = false
 local autoRedeemCodesEnabled = false
+local selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
 
 -- Stats options (display names)
 local stats = {
@@ -146,6 +148,16 @@ local statMap = {
     Energy = "Primary_Energy",
     Coins = "Primary_Coins",
     Luck = "Primary_Luck"
+}
+
+local gachaRarityMap = {
+    Common = "1",
+    Uncommon = "2",
+    Rare = "3",
+    Epic = "4",
+    Legendary = "5",
+    Mythical = "6",
+    Secret = "7"
 }
 
 -- Load config if file exists
@@ -205,6 +217,7 @@ autoObeliskEnabled = config.AutoObeliskToggle or false
 selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
 fpsBoostEnabled = config.FPSBoostToggle or false
 autoRollDemonArtsEnabled = config.AutoRollDemonArtsToggle or false
+selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
 
 -- Helper to save config
 local function saveConfig()
@@ -1312,6 +1325,23 @@ end
 local isFPSBoosted = false
 
 -- 🧠 FPS Boost Logic
+local originalFPSValues = {}
+
+local function applyFPSBoostToInstance(obj)
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        -- Save original transparency if not already saved
+        if originalFPSValues[obj] == nil then
+            originalFPSValues[obj] = {Transparency = obj.Transparency}
+        end
+        obj.Transparency = 1
+    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+        if originalFPSValues[obj] == nil then
+            originalFPSValues[obj] = {Enabled = obj.Enabled}
+        end
+        obj.Enabled = false
+    end
+end
+
 local function enableFPSBoost()
     if game:FindFirstChild("Lighting") then
         local Lighting = game.Lighting
@@ -1328,15 +1358,7 @@ local function enableFPSBoost()
     end
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Decal") or obj:IsA("Texture") then
-            obj.Transparency = 1
-        end
-    end
-
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
-            v.Enabled = false
-        end
+        applyFPSBoostToInstance(obj)
     end
 
     if settings().Rendering then
@@ -1344,7 +1366,24 @@ local function enableFPSBoost()
     end
 end
 
+local fpsBoostConnection
+local function setupFPSBoostListener()
+    if fpsBoostConnection then
+        fpsBoostConnection:Disconnect()
+        fpsBoostConnection = nil
+    end
+    if fpsBoostEnabled then
+        fpsBoostConnection = workspace.DescendantAdded:Connect(function(obj)
+            applyFPSBoostToInstance(obj)
+        end)
+    end
+end
+
 local function disableFPSBoost()
+    if fpsBoostConnection then
+        fpsBoostConnection:Disconnect()
+        fpsBoostConnection = nil
+    end
     if game:FindFirstChild("Lighting") then
         local Lighting = game.Lighting
         Lighting.GlobalShadows = true
@@ -1359,21 +1398,27 @@ local function disableFPSBoost()
         workspace.Terrain.WaterTransparency = 0.5
     end
 
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
-            v.Enabled = true
+    -- Restore original values
+    for obj, props in pairs(originalFPSValues) do
+        if obj and obj.Parent then
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                obj.Transparency = props.Transparency or 0
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                obj.Enabled = props.Enabled == nil and true or props.Enabled
+            end
         end
     end
+    originalFPSValues = {}
 
     if settings().Rendering then
         settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
     end
 end
 
--- Main toggle function
 local function applyFPSBoostState()
     if fpsBoostEnabled then
         enableFPSBoost()
+        setupFPSBoostListener()
     else
         disableFPSBoost()
     end
@@ -1439,6 +1484,29 @@ local function redeemAllCodes()
     end
 end
 
+
+function startAutoDeleteGacha()
+    task.spawn(function()
+        while config.AutoDeleteGachaUnitsToggle and getgenv().SeisenHubRunning do
+            for rarity, enabled in pairs(selectedGachaRarities) do
+                if enabled then
+                    local args = {
+                        [1] = {
+                            ["Value"] = true,
+                            ["Path"] = {"Settings", "AutoDelete", "Gachas", "3000"..rarity, rarity},
+                            ["Action"] = "Settings"
+                        }
+                    }
+                    pcall(function()
+                        game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(args))
+                    end)
+                end
+            end
+            task.wait(2)
+        end
+    end)
+end
+
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
@@ -1471,6 +1539,8 @@ if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() 
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
+if fpsBoostEnabled then setupFPSBoostListener() end
+if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
 if antiAFKEnabled then
     getgenv().SeisenHubAntiAFK = true
     if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
@@ -1821,6 +1891,36 @@ AutoDeleteGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
         config.AutoDeleteRaritiesDropdown = {}
         for displayName, _ in pairs(Selected) do
             table.insert(config.AutoDeleteRaritiesDropdown, displayName)
+        end
+        saveConfig()
+    end
+})
+
+AutoDeleteGroupbox2:AddToggle("AutoDeleteGachaUnitsToggle", {
+    Text = "Auto Delete Gacha Units",
+    Default = config.AutoDeleteGachaUnitsToggle or false,
+    Callback = function(Value)
+        config.AutoDeleteGachaUnitsToggle = Value
+        if Value then startAutoDeleteGacha() end
+        saveConfig()
+    end
+})
+
+AutoDeleteGroupbox2:AddDropdown("AutoDeleteGachaRaritiesDropdown", {
+    Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Secret"},
+    Default = selectedGachaRarities,
+    Multi = true,
+    Text = "Select Gacha Rarities to Delete",
+    Callback = function(Selected)
+        selectedGachaRarities = {}
+        for displayName, _ in pairs(Selected) do
+            if gachaRarityMap[displayName] then
+                selectedGachaRarities[gachaRarityMap[displayName]] = true
+            end
+        end
+        config.AutoDeleteGachaRaritiesDropdown = {}
+        for displayName, _ in pairs(Selected) do
+            table.insert(config.AutoDeleteGachaRaritiesDropdown, displayName)
         end
         saveConfig()
     end
@@ -2198,6 +2298,7 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoObeliskEnabled = false
     selectedObeliskType = false
     antiAFKEnabled = false
+    selectedGachaRarities = false
     autoRollDemonArtsEnabled = false
     getgenv().SeisenHubAntiAFK = false
     if getgenv().SeisenHubAntiAFKConn then
