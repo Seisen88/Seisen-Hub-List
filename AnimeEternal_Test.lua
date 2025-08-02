@@ -501,16 +501,18 @@ end
 
 local function startAutoRollSaiyanEvolution()
     task.spawn(function()
+        -- Unlock Saiyan Evolution first (only once)
         local unlockArgs = {
             [1] = {
                 ["Upgrading_Name"] = "Unlock",
                 ["Action"] = "_Upgrades",
-                ["Upgrade_Name"] = "Saiyan_Evolution_Unlocker",
+                ["Upgrade_Name"] = "Saiyan_Evolution_Unlock",
             }
         }
         pcall(function()
             ToServer:FireServer(unpack(unlockArgs))
         end)
+        -- Now keep rolling while enabled
         while getgenv().SeisenHubRunning and autoRollSaiyanEvolutionEnabled do
             local args = {
                 [1] = {
