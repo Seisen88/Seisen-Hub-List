@@ -17,7 +17,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/deivi
 local Window = Library:CreateWindow({
     Title = "Seisen Hub",
     Footer = "Anime Eternal",
-    ToggleKeybind = Enum.KeyCode.RightControl,
+    ToggleKeybind = Enum.KeyCode.LeftAlt,
     Center = true,
     AutoShow = true,
     MobileButtonsSide = "Left"
@@ -1597,11 +1597,12 @@ if autoObeliskEnabled then startAutoObelisk() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
 if fpsBoostEnabled then applyFPSBoostState() end
 if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
+if autoSpiritualPressureUpgradeEnabled then startAutoSpiritualPressureUpgrade() end
 
 
 -- Auto Farm Toggle
-LeftGroupbox:AddToggle("AutoFarmToggle", {
-    Text = "Fast Auto Farm",
+local AutoFarmToggle = LeftGroupbox:AddToggle("AutoFarmToggle", {
+    Text = "Auto Farm (Kill Aura + Teleport)",
     Default = isAuraEnabled,
     Callback = function(Value)
         disableAllAurasExcept("AutoFarm")
@@ -1611,6 +1612,20 @@ LeftGroupbox:AddToggle("AutoFarmToggle", {
         saveConfig()
     end
 })
+
+-- Add a keybind to Auto Farm
+AutoFarmToggle:AddKeyPicker("AutoFarmKeybind", {
+    Default = "F",
+    Text = "Auto Farm Keybind",
+    Mode = "Toggle", -- "Toggle", "Hold", "Always"
+    SyncToggleState = true, -- Syncs the toggle with the keybind
+    Callback = function(Value)
+        -- This will automatically toggle the UI and run the Callback above
+        -- You can add extra logic here if needed
+        print("Auto Farm keybind pressed, value:", Value)
+    end
+})
+
 
 -- Slow Auto Farm Toggle
 LeftGroupbox:AddToggle("FastKillAuraToggle", {
@@ -1740,7 +1755,7 @@ RollGroupbox2:AddToggle("AutoRollSaiyanEvolutionToggle", {
 })
 
 -- Auto Roll Stars Toggle
-RollGroupbox:AddToggle("AutoRollStarsToggle", {
+local AutoRollStarsToggle = RollGroupbox:AddToggle("AutoRollStarsToggle", {
     Text = "Auto Roll Stars",
     Default = autoRollEnabled,
     Callback = function(Value)
@@ -1748,6 +1763,17 @@ RollGroupbox:AddToggle("AutoRollStarsToggle", {
         config.AutoRollStarsToggle = Value
         if Value then startAutoRollStars() end
         saveConfig()
+    end
+})
+
+-- Add a keybind to Auto Roll Stars
+AutoRollStarsToggle:AddKeyPicker("AutoRollStarsKeybind", {
+    Default = "R",
+    Text = "Auto Roll Stars Keybind",
+    Mode = "Toggle", -- "Toggle", "Hold", "Always"
+    SyncToggleState = true, -- Syncs the toggle with the keybind
+    Callback = function(Value)
+        print("Auto Roll Stars keybind pressed, value:", Value)
     end
 })
 
@@ -2259,10 +2285,6 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
 })
 
 
-
-
-
-
 UnloadGroupbox:AddToggle("FPSBoostToggle", {
     Text = "FPS Boost (Lower Graphics)",
     Default = fpsBoostEnabled,
@@ -2285,6 +2307,55 @@ RedeemGroupbox:AddToggle("AutoRedeemCodesToggle", {
         end
     end
 })
+
+
+local scaleOptions = {}
+local scaleLabels = {}
+for i = 50, 120, 10 do
+    local label = tostring(i) .. "%"
+    scaleOptions[label] = i
+    table.insert(scaleLabels, label)
+end
+local defaultScale = config.UIScaleDropdown or "100%"
+
+UnloadGroupbox:AddDropdown("UIScaleDropdown", {
+    Values = scaleLabels,
+    Default = defaultScale,
+    Multi = false,
+    Text = "UI Scale",
+    Callback = function(selected)
+        local scale = scaleOptions[selected] or 100
+        config.UIScaleDropdown = selected
+        saveConfig()
+        Library:SetDPIScale(scale)
+    end
+})
+
+-- On load, apply saved scale
+task.defer(function()
+    local selected = config.UIScaleDropdown or "100%"
+    local scale = scaleOptions[selected] or 100
+    Library:SetDPIScale(scale)
+end)
+
+UnloadGroupbox:AddToggle("ShowCustomCursorToggle", {
+    Text = "Show Custom Cursor",
+    Default = config.ShowCustomCursorToggle ~= false, -- default true if not set
+    Callback = function(Value)
+        Library.ShowCustomCursor = Value
+        config.ShowCustomCursorToggle = Value
+        saveConfig()
+    end
+})
+
+-- On load, apply saved cursor state
+task.defer(function()
+    if config.ShowCustomCursorToggle == nil then
+        Library.ShowCustomCursor = true
+    else
+        Library.ShowCustomCursor = config.ShowCustomCursorToggle
+    end
+end)
 
 
 UnloadGroupbox:AddButton("Unload Seisen Hub", function()
@@ -2323,6 +2394,7 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     selectedGachaRarities = false
     autoRollDemonArtsEnabled = false
 
+    disableFPSBoost()
     
     local argsOff = {
         [1] = {
@@ -2387,11 +2459,6 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
             pcall(function() conn:Disconnect() end)
         end
         getgenv().SeisenHubConnections = nil
-    end
-
-    -- Disable FPS boost and restore original settings
-    if wasFPSBoostEnabled then
-        disableFPSBoost()
     end
 
     getgenv().SeisenHubUI = nil
