@@ -1,515 +1,2522 @@
---!> UI + Platoboost Key System + Key Save + Webhook Logging
+-- Cleanup on reload
+if getgenv().SeisenHubLoaded then
+    if getgenv().SeisenHubUI and getgenv().SeisenHubUI.Parent then
+        pcall(function()
+            getgenv().SeisenHubUI:Destroy()
+        end)
+    end
+    getgenv().SeisenHubRunning = false
+    task.wait(0.25)
+end
 
---// Services
+getgenv().SeisenHubLoaded = true
+getgenv().SeisenHubRunning = true
+
+-- Load Obsidian UI
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"))()
+local Window = Library:CreateWindow({
+    Title = "Seisen Hub",
+    Footer = "Anime Eternal",
+    ToggleKeybind = Enum.KeyCode.LeftAlt,
+    Center = true,
+    AutoShow = true,
+    MobileButtonsSide = "Left"
+})
+
+-- Store ScreenGui for cleanup
+getgenv().SeisenHubUI = Library.Gui
+
+-- Tabs & Groups
+
+local MainTab = Window:AddTab("Main", "atom")
+local LeftGroupbox = MainTab:AddLeftGroupbox("Automation")
+local StatsGroupbox = MainTab:AddLeftGroupbox("Auto Stats")
+local RewardsGroupbox = MainTab:AddRightGroupbox("Auto Rewards")
+
+local TeleportTab = Window:AddTab("Teleport & Dungeon", "map")
+local TPGroupbox = TeleportTab:AddLeftGroupbox("Main Teleport")
+local DungeonGroupbox = TeleportTab:AddRightGroupbox("Auto Dungeon")
+
+local Roll = Window:AddTab("Rolls", "dice-5")
+local RollGroupbox = Roll:AddLeftGroupbox("Auto Rolls")
+local RollGroupbox2 = Roll:AddLeftGroupbox("Auto Roll Tokens")
+local AutoDeleteGroupbox = Roll:AddRightGroupbox("Auto Delete Stars")
+local AutoDeleteGroupbox2 = Roll:AddRightGroupbox("Auto Delete Sword")
+
+local UP = Window:AddTab("Upgrades", "arrow-up")
+local UpgradeGroupbox = UP:AddLeftGroupbox("Upgrades")
+local Upgrade2 = UP:AddRightGroupbox("Upgrades 2")
+
+local UISettings = Window:AddTab("UI Settings", "settings")
+local UnloadGroupbox = UISettings:AddLeftGroupbox("Utilities")
+local RedeemGroupbox = UISettings:AddRightGroupbox("Redeem Codes")
+
+
+-- Services & Variables
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+
+local ToServer = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9)
+local monstersFolder = Workspace:WaitForChild("Debris", 9e9):WaitForChild("Monsters", 9e9)
+
+local localPlayer = Players.LocalPlayer
+local teleportOffset = Vector3.new(0, 0, -3)
+
+local attackCooldown = 0.1
+local currentTarget = nil
+
+
+local RunService = game:GetService("RunService")
+
+local configFolder = "SeisenHub"
+local configFile = configFolder .. "/seisen_hub_AE.txt"
 local HttpService = game:GetService("HttpService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
 
---// Webhook URL
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1401568771679846541/6ojRCXUGtbL6XKD7DeKXM5VyBzuAjPGKVn_1gO0FD-8hWaVTjcRBRP21iylNuEXhnJzz"
+-- Ensure folder exists
+if not isfolder(configFolder) then
+    makefolder(configFolder)
+end
 
---// HWID Ban System
-local BANNED_HWIDS = {
-		"dcf114ca-b099-4da8-8a93-2f1654ea6baa", "4C95646A-5E3B-4018-BC78-9A53386F1E78", "2119e7fa-f837-43bd-9dc9-813a6e196d22"
+-- Initialize variables with explicit defaults
+local isAuraEnabled = false
+local fastKillAuraEnabled = false
+local slowKillAuraEnabled = false
+local autoRankEnabled = false
+local autoAvatarLevelingEnabled = false
+local autoAcceptAllQuestsEnabled = false
+local autoRollDragonRaceEnabled = false
+local autoRollSaiyanEvolutionEnabled = false
+local autoRollEnabled = false
+local autoDeleteEnabled = false
+local autoClaimAchievementsEnabled = false
+local autoRollSwordsEnabled = false
+local autoRollPirateCrewEnabled = false
+local selectedStar = "Star_1"
+local selectedDeleteStar = "Star_1"
+local delayBetweenRolls = 0.5
+local selectedRarities = {}
+local autoStatsRunning = false
+local isAutoTimeRewardEnabled = false
+local isAutoDailyChestEnabled = false
+local isAutoVipChestEnabled = false
+local isAutoGroupChestEnabled = false
+local isAutoPremiumChestEnabled = false
+local disableNotificationsEnabled = false
+local autoUpgradeEnabled = false
+local autoEnterDungeon = false
+local selectedStat = "Damage"
+local autoHakiUpgradeEnabled = false
+local autoRollDemonFruitsEnabled = false
+local autoAttackRangeUpgradeEnabled = false
+local mutePetSoundsEnabled = false
+local originalVolumes = {}
+local autoSpiritualPressureUpgradeEnabled = false
+local autoRollReiatsuColorEnabled = false
+local autoRollZanpakutoEnabled = false
+local config = getgenv().SeisenHubConfig or {}
+local autoCursedProgressionUpgradeEnabled = false
+local autoRollCursesEnabled = false
+local autoObeliskEnabled = false
+local fpsBoostEnabled = false
+local selectedObeliskType = "Slayer_Obelisk"
+local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
+local autoRollDemonArtsEnabled = false
+local autoRedeemCodesEnabled = false
+local selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
+
+
+-- Stats options (display names)
+local stats = {
+    "Damage",
+    "Energy",
+    "Coins",
+    "Luck"
 }
 
--- Config
-local service = 5291
-local secret = "54bdfa73-2775-4d6b-b81c-d253b77ed386"
-local useNonce = true
-local host = "https://api.platoboost.com"
+-- Internal stat mapping
+local statMap = {
+    Damage = "Primary_Damage",
+    Energy = "Primary_Energy",
+    Coins = "Primary_Coins",
+    Luck = "Primary_Luck"
+}
 
--- Key Save Folder and File
-local KEY_FOLDER = "SeisenHub"
-local KEY_FILE = KEY_FOLDER .. "/seisen_key.txt"
+local gachaRarityMap = {
+    Common = "1",
+    Uncommon = "2",
+    Rare = "3",
+    Epic = "4",
+    Legendary = "5",
+    Mythical = "6",
+    Secret = "7"
+}
 
--- Functions
-local fSetClipboard = setclipboard or toclipboard
-local fRequest = (syn and syn.request) or request or http_request or fluxus and fluxus.request
-local fChar, fFloor, fRand, fTime = string.char, math.floor, math.random, os.time
-local fGetHwid = gethwid or function() return Players.LocalPlayer.UserId end
-
--- Utilities
-local function lEncode(tbl) return HttpService:JSONEncode(tbl) end
-local function lDecode(str) return HttpService:JSONDecode(str) end
-local function lDigest(str) return (hashfunc and hashfunc(str)) or str end
-local function generateNonce()
-	local str = ""
-	for _ = 1, 16 do str = str .. fChar(fFloor(fRand() * (122 - 97 + 1)) + 97) end
-	return str
+-- Load config if file exists
+if isfile(configFile) then
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(configFile))
+    end)
+    if ok and type(data) == "table" then
+        for k, v in pairs(data) do
+            config[k] = v
+        end
+    end
 end
 
---// Webhook Functions
-local function getPHTime()
-	local offset = 8 * 3600
-	local utc = os.time(os.date("!*t"))
-	return os.date("%Y-%m-%d %H:%M:%S", utc + offset)
+-- Load config values with defaults
+isAuraEnabled = config.AutoFarmToggle or false
+fastKillAuraEnabled = config.FastKillAuraToggle or false
+slowKillAuraEnabled = config.SlowKillAuraToggle or false
+autoRankEnabled = config.AutoRankToggle or false
+autoAvatarLevelingEnabled = config.AutoAvatarLevelingToggle or false
+autoAcceptAllQuestsEnabled = config.AutoAcceptAllQuestsToggle or false
+autoRollDragonRaceEnabled = config.AutoRollDragonRaceToggle or false
+autoRollSaiyanEvolutionEnabled = config.AutoRollSaiyanEvolutionToggle or false
+autoRollEnabled = config.AutoRollStarsToggle or false
+autoDeleteEnabled = config.AutoDeleteUnitsToggle or false
+autoClaimAchievementsEnabled = config.AutoClaimAchievement or false
+autoRollSwordsEnabled = config.AutoRollSwordsToggle or false
+autoRollPirateCrewEnabled = config.AutoRollPirateCrewToggle or false
+selectedStar = config.SelectStarDropdown or "Star_1"
+selectedDeleteStar = config.SelectDeleteStarDropdown or "Star_1"
+delayBetweenRolls = config.DelayBetweenRollsSlider or 0.5
+selectedRarities = config.AutoDeleteRaritiesDropdown or {}
+autoStatsRunning = config.AutoAssignStatToggle or false
+isAutoTimeRewardEnabled = config.AutoClaimTimeRewardToggle or false
+isAutoDailyChestEnabled = config.AutoClaimDailyChestToggle or false
+isAutoVipChestEnabled = config.AutoClaimVipChestToggle or false
+isAutoGroupChestEnabled = config.AutoClaimGroupChestToggle or false
+isAutoPremiumChestEnabled = config.AutoClaimPremiumChestToggle or false
+disableNotificationsEnabled = config.DisableNotificationsToggle or false
+autoUpgradeEnabled = config.AutoUpgradeToggle or false
+autoEnterDungeon = config.AutoEnterDungeonToggle or false
+selectedStat = config.AutoStatSingleDropdown or "Damage"
+autoHakiUpgradeEnabled = config.AutoHakiUpgradeToggle or false
+autoRollDemonFruitsEnabled = config.AutoRollDemonFruitsToggle or false
+autoAttackRangeUpgradeEnabled = config.AutoAttackRangeUpgradeToggle or false
+pointsPerSecond = config.PointsPerSecondSlider or 1
+autoSpiritualPressureUpgradeEnabled = config.AutoSpiritualPressureUpgradeToggle or false
+autoRollReiatsuColorEnabled = config.AutoRollReiatsuColorToggle or false
+mutePetSoundsEnabled = config.MutePetSoundsToggle or false
+selectedRaritiesDisplay = config.AutoDeleteRaritiesDropdown or {}
+selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
+autoRollZanpakutoEnabled = config.AutoRollZanpakutoToggle or false
+autoCursedProgressionUpgradeEnabled = config.AutoCursedProgressionUpgradeToggle or false
+autoRollCursesEnabled = config.AutoRollCursesToggle or false
+
+autoObeliskEnabled = config.AutoObeliskToggle or false
+selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
+fpsBoostEnabled = config.FPSBoostToggle or false
+autoRollDemonArtsEnabled = config.AutoRollDemonArtsToggle or false
+
+selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
+
+-- Helper to save config
+local function saveConfig()
+    config.SelectedDungeons = selectedDungeons
+    config.AutoAssignStatToggle = autoStatsRunning
+    config.AutoStatSingleDropdown = selectedStat
+    config.PointsPerSecondSlider = pointsPerSecond
+    config.AutoAvatarLevelingToggle = autoAvatarLevelingEnabled
+    config.MutePetSoundsToggle = mutePetSoundsEnabled
+    config.AutoSpiritualPressureUpgradeToggle = autoSpiritualPressureUpgradeEnabled
+    config.AutoRollReiatsuColorToggle = autoRollReiatsuColorEnabled
+    config.FPSBoostToggle = fpsBoostEnabled
+    config.AutoRollDemonArtsToggle = autoRollDemonArtsEnabled
+    getgenv().SeisenHubConfig = config
+    writefile(configFile, HttpService:JSONEncode(config))
 end
 
-local function getGameName()
-	local success, info = pcall(function()
-		return MarketplaceService:GetProductInfo(game.PlaceId)
-	end)
-	return (success and info and info.Name) or "Unknown Game"
+-- ========== Automations =========
+
+local function disableAllAurasExcept(except)
+    if except ~= "AutoFarm" then isAuraEnabled = false end
+    if except ~= "FastKillAura" then fastKillAuraEnabled = false end
+    if except ~= "SlowKillAura" then slowKillAuraEnabled = false end
 end
 
-local function getHWID()
-	return RbxAnalyticsService:GetClientId()
+-- Get nearest monster
+local function getNearestValidMonster()
+    local character = localPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+
+    local closest, closestDist = nil, math.huge
+    local myPos = character.HumanoidRootPart.Position
+
+    for _, monster in pairs(monstersFolder:GetChildren()) do
+        local hrp = monster:FindFirstChild("HumanoidRootPart")
+        local hum = monster:FindFirstChild("Humanoid")
+        if monster:IsA("Model") and hrp and hum and hum.Health > 0 then
+            local dist = (hrp.Position - myPos).Magnitude
+            if dist < closestDist then
+                closest = monster
+                closestDist = dist
+            end
+        end
+    end
+
+    return closest
 end
 
---// HWID Ban Check Function
-local function isHWIDBanned()
-	local currentHWID = getHWID()
-	
-	-- Check if current HWID is in banned list
-	for _, bannedHWID in pairs(BANNED_HWIDS) do
-		if currentHWID == bannedHWID then
-			return true, bannedHWID
-		end
-	end
-	
-	return false, currentHWID
+-- Teleport to monster
+local function teleportToMonster(monster)
+    local character = localPlayer.Character
+    local myHRP = character and character:FindFirstChild("HumanoidRootPart")
+    local targetHRP = monster and monster:FindFirstChild("HumanoidRootPart")
+    if myHRP and targetHRP then
+        pcall(function()
+            myHRP.CFrame = CFrame.new(targetHRP.Position + teleportOffset)
+        end)
+    end
 end
 
---// HWID Ban Check (Run before UI)
-local function checkHWIDBan()
-	local isBanned, hwid = isHWIDBanned()
-	
-	if isBanned then
-		-- Send ban notification to webhook
-		local banPayload = {
-			["username"] = "HWID Ban System",
-			["embeds"] = { {
-				["title"] = "🚫 Bypass Attempt Detected - HWID Banned",
-				["color"] = 16711680, -- Red
-				["fields"] = {
-					{ ["name"] = "👤 Player name", ["value"] = LocalPlayer.Name, ["inline"] = true },
-					{ ["name"] = "🆔 UserId", ["value"] = tostring(LocalPlayer.UserId), ["inline"] = true },
-					{ ["name"] = "🧾 Banned HWID", ["value"] = hwid, ["inline"] = false },
-					{ ["name"] = "🚫 Bypass Attempt", ["value"] = "User tried to execute script with banned HWID", ["inline"] = false },
-					{ ["name"] = "🗺️ Game name", ["value"] = getGameName(), ["inline"] = true },
-					{ ["name"] = "📍 PlaceId", ["value"] = tostring(game.PlaceId), ["inline"] = true },
-					{ ["name"] = "🕒 Time in PH timezone", ["value"] = getPHTime(), ["inline"] = false }
-				},
-				["footer"] = { ["text"] = "Seisen Hub | HWID Ban System" },
-				["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
-			} }
-		}
-		
-		pcall(function()
-			fRequest({
-				Url = WEBHOOK_URL,
-				Method = "POST",
-				Headers = { ["Content-Type"] = "application/json" },
-				Body = lEncode(banPayload)
-			})
-		end)
-		
-		-- Show ban message and exit
-		warn("🚫 STOP BYPASSING THE KEY: Your device is banned from using this system.")
-		warn("HWID: " .. hwid)
-		warn("Stop trying to bypass the key system.")
-		
-		-- Show bypass warning notification
-		local banGui = Instance.new("ScreenGui", game.CoreGui)
-		banGui.Name = "BypassWarningNotification"
-		
-		local banFrame = Instance.new("Frame", banGui)
-		banFrame.Size = UDim2.new(0, 450, 0, 180)
-		banFrame.Position = UDim2.new(0.5, -225, 0.5, -90)
-		banFrame.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-		banFrame.BorderSizePixel = 0
-		Instance.new("UICorner", banFrame).CornerRadius = UDim.new(0, 10)
-		Instance.new("UIStroke", banFrame).Color = Color3.fromRGB(255, 100, 100)
-		
-		local banTitle = Instance.new("TextLabel", banFrame)
-		banTitle.Size = UDim2.new(1, 0, 0, 50)
-		banTitle.Position = UDim2.new(0, 0, 0, 0)
-		banTitle.Text = "🚫 STOP BYPASSING THE KEY"
-		banTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-		banTitle.BackgroundTransparency = 1
-		banTitle.Font = Enum.Font.GothamBold
-		banTitle.TextSize = 22
-		
-		local banMessage = Instance.new("TextLabel", banFrame)
-		banMessage.Size = UDim2.new(1, -20, 0, 100)
-		banMessage.Position = UDim2.new(0, 10, 0, 60)
-		banMessage.Text = "Your device is banned from using this system.\n\nHWID: " .. hwid .. "\n\nStop trying to bypass the key system.\nContact support if you believe this is an error."
-		banMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
-		banMessage.BackgroundTransparency = 1
-		banMessage.Font = Enum.Font.Gotham
-		banMessage.TextSize = 14
-		banMessage.TextWrapped = true
-		
-		-- Auto-remove after 10 seconds
-		task.wait(10)
-		banGui:Destroy()
-		
-		return true -- User is banned
-	end
-	
-	return false -- User is not banned
+-- Task functions
+local function startAutoFarm()
+    task.spawn(function()
+        while getgenv().SeisenHubRunning and isAuraEnabled do
+            local char = localPlayer.Character
+            local myHRP = char and char:FindFirstChild("HumanoidRootPart")
+
+            if not myHRP then
+                task.wait(attackCooldown)
+                continue
+            end
+
+            -- Check if currentTarget is invalid or too far
+            local maxDistance = 50
+            if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
+                or not currentTarget:FindFirstChild("Humanoid")
+                or currentTarget.Humanoid.Health <= 0
+                or (currentTarget:FindFirstChild("HumanoidRootPart") and (currentTarget.HumanoidRootPart.Position - myHRP.Position).Magnitude > maxDistance) then
+                currentTarget = getNearestValidMonster()
+                if currentTarget then
+                    teleportToMonster(currentTarget)
+                end
+                continue
+            end
+
+            if currentTarget and myHRP then
+                local hrp = currentTarget:FindFirstChild("HumanoidRootPart")
+                local hum = currentTarget:FindFirstChild("Humanoid")
+
+                if hrp and hum and hum.Health > 0 then
+                    local args = {
+                        [1] = {
+                            ["Id"] = currentTarget.Name,
+                            ["Action"] = "_Mouse_Click",
+                            ["Critical"] = true
+                        }
+                    }
+                    pcall(function()
+                        ToServer:FireServer(unpack(args))
+                    end)
+                end
+            end
+            task.wait(attackCooldown)
+        end
+    end)
 end
 
-local function sendWebhookLog(key, valid)
-	local payload = {
-		["username"] = "Key System Logger",
-		["embeds"] = { {
-			["title"] = "🔐 Game Key Check",
-			["color"] = valid and 65280 or 16711680,
-			["fields"] = {
-				{ ["name"] = "👤 Player name", ["value"] = LocalPlayer.Name, ["inline"] = true },
-				{ ["name"] = "🔑 Key entered", ["value"] = key, ["inline"] = true },
-				{ ["name"] = "🧾 HWID / Device ID", ["value"] = getHWID(), ["inline"] = false },
-				{ ["name"] = "🆔 UserId", ["value"] = tostring(LocalPlayer.UserId), ["inline"] = true },
-				{ ["name"] = "📅 Account age", ["value"] = LocalPlayer.AccountAge .. " days", ["inline"] = true },
-				{ ["name"] = "🗺️ Game name", ["value"] = getGameName(), ["inline"] = true },
-				{ ["name"] = "📍 PlaceId", ["value"] = tostring(game.PlaceId), ["inline"] = true },
-				{ ["name"] = "🕒 Time in PH timezone", ["value"] = getPHTime(), ["inline"] = false }
-			},
-			["footer"] = { ["text"] = "Seisen Hub | Platoboost System" },
-			["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
-		} }
-	}
+local function startFastKillAura()
+    task.spawn(function()
+        local argsActivator = {
+            [1] = {
+                ["Gamepass"] = true,
+                ["Action"] = "PromptPurchase",
+                ["Name"] = "Fast_Clicker",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(argsActivator))
+        end)
+        while fastKillAuraEnabled and getgenv().SeisenHubRunning do
+            local char = localPlayer.Character
+            local myHRP = char and char:FindFirstChild("HumanoidRootPart")
 
-	local success = pcall(function()
-		fRequest({
-			Url = WEBHOOK_URL,
-			Method = "POST",
-			Headers = { ["Content-Type"] = "application/json" },
-			Body = lEncode(payload)
-		})
-	end)
-	
-	return success
+            if not myHRP then
+                task.wait(0.1)
+                continue
+            end
+
+            -- Check if currentTarget is invalid or too far
+            local maxDistance = 50
+            if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
+                or not currentTarget:FindFirstChild("Humanoid")
+                or currentTarget.Humanoid.Health <= 0
+                or (currentTarget:FindFirstChild("HumanoidRootPart") and (currentTarget.HumanoidRootPart.Position - myHRP.Position).Magnitude > maxDistance) then
+                currentTarget = getNearestValidMonster()
+                if currentTarget then
+                    teleportToMonster(currentTarget)
+                    task.wait(0.6) -- Small delay after teleporting
+                end
+                continue
+            end
+
+            if currentTarget and myHRP then
+                local hrp = currentTarget:FindFirstChild("HumanoidRootPart")
+                local hum = currentTarget:FindFirstChild("Humanoid")
+
+                if hrp and hum and hum.Health > 0 then
+                    local argsAttack = {
+                        [1] = {
+                            ["Id"] = currentTarget.Name,
+                            ["Action"] = "_Mouse_Click",
+                        }
+                    }
+                    pcall(function()
+                        ToServer:FireServer(unpack(argsAttack))
+                    end)
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
 end
 
-local function onMessage(msg)
-	if StatusLabel then StatusLabel.Text = "Status: " .. msg end
+local lastScan = 0
+local scanInterval = 0.3 -- scan every 0.3 seconds
+
+local function getNearestMonsterThrottled()
+    if tick() - lastScan > scanInterval then
+        lastScan = tick()
+        currentTarget = getNearestValidMonster()
+    end
+    return currentTarget
 end
 
--- Cache Key URL
-local cachedLink, cachedTime = "", 0
-local function cacheLink()
-	if cachedTime + (10 * 60) < fTime() then
-		local res = fRequest({
-			Url = host .. "/public/start",
-			Method = "POST",
-			Headers = {["Content-Type"] = "application/json"},
-			Body = lEncode({service = service, identifier = lDigest(fGetHwid())})
-		})
-		if res.StatusCode == 200 then
-			local decoded = lDecode(res.Body)
-			if decoded.success then
-				cachedLink = decoded.data.url
-				cachedTime = fTime()
-				return true, cachedLink
-			else
-				onMessage(decoded.message)
-			end
-		else
-			onMessage("Link fetch failed.")
-		end
-		return false
-	else
-		return true, cachedLink
-	end
+local function startSlowKillAura()
+    task.spawn(function()
+        local argsActivator = {
+            [1] = {
+                ["Value"] = true,
+                ["Path"] = {
+                    [1] = "Settings",
+                    [2] = "Is_Auto_Clicker",
+                },
+                ["Action"] = "Settings",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(argsActivator))
+        end)
+        while slowKillAuraEnabled and getgenv().SeisenHubRunning do
+            local monster = getNearestValidMonster()
+            if monster then
+                local hum = monster:FindFirstChild("Humanoid")
+                if hum and hum.Health > 0 then
+                    local argsAttack = {
+                        [1] = {
+                            ["Id"] = monster.Name,
+                            ["Action"] = "_Mouse_Click",
+                        }
+                    }
+                    pcall(function()
+                        ToServer:FireServer(unpack(argsAttack))
+                    end)
+                end
+            end
+            task.wait(0.05) -- Much faster attack speed
+        end
+    end)
 end
 
--- Copy Key Link
-local function copyLink()
-	local ok, link = cacheLink()
-	if ok then
-		fSetClipboard(link)
-		onMessage("Key link copied!")
-	else
-		onMessage("Failed to copy key link.")
-	end
+local function startAutoRank()
+    task.spawn(function()
+        while autoRankEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Upgrading_Name"] = "Rank",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Rank_Up",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
 end
 
--- Redeem Key (if it's a KEY_ string)
-local function redeemKey(key)
-	local body = {
-		identifier = lDigest(fGetHwid()),
-		key = key
-	}
-	if useNonce then body.nonce = generateNonce() end
-	local res = fRequest({
-		Url = host .. "/public/redeem/" .. service,
-		Method = "POST",
-		Headers = {["Content-Type"] = "application/json"},
-		Body = lEncode(body)
-	})
-	if res.StatusCode == 200 then
-		local decoded = lDecode(res.Body)
-		if decoded.success and decoded.data.valid then
-			if not isfolder(KEY_FOLDER) then makefolder(KEY_FOLDER) end
-			writefile(KEY_FILE, key)
-			return true
-		else
-			onMessage(decoded.message or "Invalid key.")
-		end
-	else
-		onMessage("Redeem failed.")
-	end
-	return false
+local function startAutoAvatarLeveling()
+    task.spawn(function()
+        while getgenv().SeisenHubRunning and autoAvatarLevelingEnabled do
+            local args = {
+                [1] = {
+                    ["Value"] = true,
+                    ["Path"] = {
+                        [1] = "Settings",
+                        [2] = "Is_Auto_Avatar_Leveling",
+                    },
+                    ["Action"] = "Settings",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
 end
 
--- Verify Key
-local function verifyKey(key)
-	local url = host .. "/public/whitelist/" .. service .. "?identifier=" .. lDigest(fGetHwid()) .. "&key=" .. key
-	if useNonce then url = url .. "&nonce=" .. generateNonce() end
-	local res = fRequest({Url = url, Method = "GET"})
-	if res.StatusCode == 200 then
-		local decoded = lDecode(res.Body)
-		if decoded.success and decoded.data.valid then
-			if not isfolder(KEY_FOLDER) then makefolder(KEY_FOLDER) end
-			writefile(KEY_FILE, key)
-			onMessage("Key valid.")
-			return true
-		elseif key:sub(1, 4) == "KEY_" then
-			return redeemKey(key)
-		else
-			onMessage("Invalid key.")
-		end
-	else
-		onMessage("Verify failed.")
-	end
-	return false
+local function startAutoQuests()
+    task.spawn(function()
+        while autoAcceptAllQuestsEnabled and getgenv().SeisenHubRunning do
+            for questId = 1, 99 do
+                local argsAccept = {
+                    [1] = {
+                        ["Id"] = tostring(questId),
+                        ["Type"] = "Accept",
+                        ["Action"] = "_Quest",
+                    }
+                }
+                pcall(function()
+                    ToServer:FireServer(unpack(argsAccept))
+                end)
+                task.wait(0.05)
+                local argsComplete = {
+                    [1] = {
+                        ["Id"] = tostring(questId),
+                        ["Type"] = "Complete",
+                        ["Action"] = "_Quest",
+                    }
+                }
+                pcall(function()
+                    ToServer:FireServer(unpack(argsComplete))
+                end)
+                task.wait(0.05)
+            end
+            task.wait(2)
+        end
+    end)
 end
 
--- Load Main Script
-local function loadSwordburst()
-	task.spawn(function()
-		local success, err = pcall(function()
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/main/DungeonHeroes_Test.lua"))()
-		end)
-		if not success then
-			warn("Failed to load Swordburst:", err)
-			onMessage("Failed to load main script.")
-		end
-	end)
+local function startAutoAchievements()
+    task.spawn(function()
+        local achievements = {
+            Total_Energy = 20,
+            Total_Coins = 15,
+            Friends_Bonus = 5,
+            Time_Played = 8,
+            Stars = 10,
+            Defeats = 13,
+            Dungeon_Easy = 5,
+            Total_Dungeon_Easy = 5,
+            Dungeon_Medium = 5,
+            Total_Dungeon_Medium = 5,
+            Dungeon_Hard = 5,
+            Total_Dungeon_Hard = 5,
+            Dungeon_Insane = 5,
+            Total_Dungeon_Insane = 5,
+            Dungeon_Crazy = 5,
+            Total_Dungeon_Crazy = 5,
+            Leaf_Raid = 9,
+            Titan_Defense = 9,
+        }
+
+        local function toRoman(num)
+            local romanNumerals = {
+                [1] = "I", [2] = "II", [3] = "III", [4] = "IV",
+                [5] = "V", [6] = "VI", [7] = "VII", [8] = "VIII",
+                [9] = "IX", [10] = "X", [11] = "XI", [12] = "XII",
+                [13] = "XIII", [14] = "XIV", [15] = "XV", [16] = "XVI",
+                [17] = "XVII", [18] = "XVIII", [19] = "XIX", [20] = "XX"
+            }
+            return romanNumerals[num]
+        end
+
+        while autoClaimAchievementsEnabled and getgenv().SeisenHubRunning do
+            for name, maxLevel in pairs(achievements) do
+                for i = 1, maxLevel do
+                    local id = name .. "_" .. toRoman(i)
+                    local args = {
+                        [1] = {
+                            ["Action"] = "Achievements",
+                            ["Id"] = id
+                        }
+                    }
+                    pcall(function()
+                        ToServer:FireServer(unpack(args))
+                    end)
+                    task.wait(0.2)
+                end
+            end
+            task.wait(3)
+        end
+    end)
 end
 
--- HWID Ban Check (Run first)
-if checkHWIDBan() then
-	return -- Exit if user is banned
+local function startAutoRollDragonRace()
+    task.spawn(function()
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Dragon_Race_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        while getgenv().SeisenHubRunning and autoRollDragonRaceEnabled do
+            local args = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Dragon_Race",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
 end
 
--- Auto-check key before UI
-local autoKey = ""
-pcall(function()
-	if not isfolder(KEY_FOLDER) then makefolder(KEY_FOLDER) end
-	if isfile(KEY_FILE) then
-		autoKey = readfile(KEY_FILE)
-	end
+function startAutoRollSaiyanEvolution()
+    task.spawn(function()
+        -- Unlock Saiyan Evolution first
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Saiyan_Evolution_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+            print("Saiyan Evolution unlock request sent") -- Debug
+        end)
+        -- Wait to ensure unlock is processed
+        task.wait(2) -- Adjust delay if needed based on server response time
+        -- Now keep rolling while enabled
+        while getgenv().SeisenHubRunning and autoRollSaiyanEvolutionEnabled do
+            local args = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Saiyan_Evolution",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoRollStars()
+    task.spawn(function()
+        while getgenv().SeisenHubRunning and autoRollEnabled do
+            pcall(function()
+                local cacheArgs = {
+                    [1] = {
+                        ["Action"] = "Star_Cache_Request",
+                        ["Name"] = selectedStar
+                    }
+                }
+                ToServer:FireServer(unpack(cacheArgs))
+                local rollArgs = {
+                    [1] = {
+                        ["Open_Amount"] = 5,
+                        ["Action"] = "_Stars",
+                        ["Name"] = selectedStar
+                    }
+                }
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(delayBetweenRolls)
+        end
+    end)
+end
+
+local function startAutoDelete()
+    task.spawn(function()
+        while autoDeleteEnabled and getgenv().SeisenHubRunning do
+            pcall(function()
+                local starRarityMap = {
+                    ["Star_1"] = {
+                        ["1"] = {"70001", "70008"},
+                        ["2"] = {"70002", "70009"},
+                        ["3"] = {"70003", "70010"},
+                        ["4"] = {"70004", "70011"},
+                        ["5"] = {"70005", "70012"},
+                        ["6"] = {"70006", "70013"}
+                    },
+                    ["Star_2"] = {
+                        ["1"] = {"70008"},
+                        ["2"] = {"70009"},
+                        ["3"] = {"70010"},
+                        ["4"] = {"70011"},
+                        ["5"] = {"70012"},
+                        ["6"] = {"70013"}
+                    },
+                    ["Star_3"] = {
+                        ["1"] = {"70015"},
+                        ["2"] = {"70016"},
+                        ["3"] = {"70017"},
+                        ["4"] = {"70018"},
+                        ["5"] = {"70019"},
+                        ["6"] = {"70020"}
+                    },
+                    ["Star_4"] = {
+                        ["1"] = {"70022"},
+                        ["2"] = {"70023"},
+                        ["3"] = {"70024"},
+                        ["4"] = {"70025"},
+                        ["5"] = {"70026"},
+                        ["6"] = {"70027"}
+                    },
+                    ["Star_5"] = {
+                        ["1"] = {"70029"},
+                        ["2"] = {"70030"},
+                        ["3"] = {"70031"},
+                        ["4"] = {"70032"},
+                        ["5"] = {"70033"},
+                        ["6"] = {"70034"}
+                    },
+                    ["Star_6"] = {
+                        ["1"] = {"70036"},
+                        ["2"] = {"70037"},
+                        ["3"] = {"70038"},
+                        ["4"] = {"70039"},
+                        ["5"] = {"70040"},
+                        ["6"] = {"70041"}
+                    },
+                    ["Star_7"] = {
+                        ["1"] = {"70043"},
+                        ["2"] = {"70044"},
+                        ["3"] = {"70045"},
+                        ["4"] = {"70046"},
+                        ["5"] = {"70047"},
+                        ["6"] = {"70048"}
+                    },
+                    ["Star_8"] = {
+                        ["1"] = {"70050"},
+                        ["2"] = {"70051"},
+                        ["3"] = {"70052"},
+                        ["4"] = {"70053"},
+                        ["5"] = {"70054"},
+                        ["6"] = {"70055"}
+                    },
+                    ["Star_9"] = {
+                        ["1"] = {"70057"},
+                        ["2"] = {"70058"},
+                        ["3"] = {"70059"},
+                        ["4"] = {"70060"},
+                        ["5"] = {"70061"},
+                        ["6"] = {"70062"}
+                    },
+                    ["Star_10"] = {
+                        ["1"] = {"70064"},
+                        ["2"] = {"70065"},
+                        ["3"] = {"70066"},
+                        ["4"] = {"70067"},
+                        ["5"] = {"70068"},
+                        ["6"] = {"70069"}
+                    },
+                    ["Star_11"] = {
+                        ["1"] = {"70071"},
+                        ["2"] = {"70072"},
+                        ["3"] = {"70073"},
+                        ["4"] = {"70074"},
+                        ["5"] = {"70075"},
+                        ["6"] = {"70076"}
+                    },
+                    ["Star_12"] = {
+                        ["1"] = {"70078"},
+                        ["2"] = {"70079"},
+                        ["3"] = {"70080"},
+                        ["4"] = {"70081"},
+                        ["5"] = {"70082"},
+                        ["6"] = {"70083"}
+                    },
+                    ["Star_13"] = {
+                        ["1"] = {"70085"},
+                        ["2"] = {"70086"},
+                        ["3"] = {"70087"},
+                        ["4"] = {"70088"},
+                        ["5"] = {"70089"},
+                        ["6"] = {"70090"}
+                    },
+                }
+
+                for star, rarities in pairs(starRarityMap) do
+                    for rarity, ids in pairs(rarities) do
+                        for _, id in ipairs(ids) do
+                            local args = {
+                                [1] = {
+                                    ["Value"] = false,
+                                    ["Path"] = {"Settings", "AutoDelete", "Stars", id, tostring(rarity)},
+                                    ["Action"] = "Settings"
+                                }
+                            }
+                            ToServer:FireServer(unpack(args))
+                        end
+                    end
+                end
+
+                local rarities = starRarityMap[selectedDeleteStar]
+                if rarities then
+                    for rarity, _ in pairs(selectedRarities) do
+                        local ids = rarities[rarity]
+                        if ids then
+                            for _, id in ipairs(ids) do
+                                local args = {
+                                    [1] = {
+                                        ["Value"] = true,
+                                        ["Path"] = {"Settings", "AutoDelete", "Stars", id, rarity},
+                                        ["Action"] = "Settings"
+                                    }
+                                }
+                                pcall(function()
+                                    ToServer:FireServer(unpack(args))
+                                end)
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+local function startAutoStats()
+    task.spawn(function()
+        while task.wait(1) do
+            if autoStatsRunning and selectedStat then
+                if not statMap then
+                    warn("statMap is nil!")
+                    return
+                end
+                local statName = statMap[selectedStat]
+                if not statName then
+                    warn("Invalid stat selected:", selectedStat)
+                    return
+                end
+                local args = {
+                    [1] = {
+                        ["Name"] = statName,
+                        ["Action"] = "Assign_Level_Stats",
+                        ["Amount"] = pointsPerSecond
+                    }
+                }
+                pcall(function()
+                    ToServer:FireServer(unpack(args))
+                end)
+            end
+        end
+    end)
+end
+
+local function startAutoTimeReward()
+    task.spawn(function()
+        while isAutoTimeRewardEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Action"] = "_Hourly_Rewards",
+                    ["Id"] = "All",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoDailyChest()
+    task.spawn(function()
+        while isAutoDailyChestEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Action"] = "_Chest_Claim",
+                    ["Name"] = "Daily",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoVipChest()
+    task.spawn(function()
+        while isAutoVipChestEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Action"] = "_Chest_Claim",
+                    ["Name"] = "Vip",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoGroupChest()
+    task.spawn(function()
+        while isAutoGroupChestEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Action"] = "_Chest_Claim",
+                    ["Name"] = "Group",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoPremiumChest()
+    task.spawn(function()
+        while isAutoPremiumChestEnabled and getgenv().SeisenHubRunning do
+            local args = {
+                [1] = {
+                    ["Action"] = "_Chest_Claim",
+                    ["Name"] = "Premium",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoEnterDungeon()
+    task.spawn(function()
+        while autoEnterDungeon and getgenv().SeisenHubRunning do
+            for _, dungeon in ipairs(selectedDungeons) do
+                pcall(function()
+                    local args = {
+                        [1] = {
+                            ["Action"] = "_Enter_Dungeon",
+                            ["Name"] = dungeon
+                        }
+                    }
+                    ToServer:FireServer(unpack(args))
+                end)
+                task.wait(1)
+            end
+            task.wait(5)
+        end
+    end)
+end
+
+local function startAutoUpgrade()
+    task.spawn(function()
+        while autoUpgradeEnabled and getgenv().SeisenHubRunning do
+            pcall(function()
+                for upgradeName, isEnabled in pairs(enabledUpgrades) do
+                    if isEnabled then
+                        local args = {
+                            [1] = {
+                                ["Upgrading_Name"] = upgradeName,
+                                ["Action"] = "_Upgrades",
+                                ["Upgrade_Name"] = "Upgrades",
+                            }
+                        }
+                        ToServer:FireServer(unpack(args))
+                    end
+                end
+            end)
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function startAutoRollSwords()
+    task.spawn(function()
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Swords_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        while getgenv().SeisenHubRunning and autoRollSwordsEnabled do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Swords",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function startAutoRollPirateCrew()
+    task.spawn(function()
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Pirate_Crew_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        while getgenv().SeisenHubRunning and autoRollPirateCrewEnabled do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Pirate_Crew",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+function startAutoHakiUpgrade()
+    task.spawn(function()
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Haki_Upgrade_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        while autoHakiUpgradeEnabled and getgenv().SeisenHubRunning do
+            local upgradeArgs = {
+                [1] = {
+                    ["Upgrading_Name"] = "Haki_Upgrade",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Haki_Upgrade",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(upgradeArgs))
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+function startAutoRollDemonFruits()
+    task.spawn(function()
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Demon_Fruits_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        while autoRollDemonFruitsEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Demon_Fruits",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+function startAutoAttackRangeUpgrade()
+    task.spawn(function()
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Attack_Range_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        while autoAttackRangeUpgradeEnabled and getgenv().SeisenHubRunning do
+            local upgradeArgs = {
+                [1] = {
+                    ["Upgrading_Name"] = "Attack_Range",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Attack_Range",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(upgradeArgs))
+            end)
+            task.wait(2)
+        end
+    end)
+end
+
+local function applyNotificationsState()
+    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", 5)
+    if not playerGui then return end
+
+    local notifications = playerGui:WaitForChild("Notifications", 5)
+    if not notifications then return end
+
+    if disableNotificationsEnabled then
+        if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+            notifications.Enabled = false
+        elseif notifications:IsA("GuiObject") then
+            notifications.Visible = false
+        end
+    else
+        if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+            notifications.Enabled = true
+        elseif notifications:IsA("GuiObject") then
+            notifications.Visible = true
+        end
+    end
+end
+
+local function applyMutePetSoundsState()
+    local audioFolder = ReplicatedStorage:WaitForChild("Audio", 5)
+    if not audioFolder then return end
+
+    local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
+    for _, soundName in ipairs(petSounds) do
+        local sound = audioFolder:FindFirstChild(soundName)
+        if sound and sound:IsA("Sound") then
+            if mutePetSoundsEnabled then
+                if not originalVolumes[soundName] then
+                    originalVolumes[soundName] = sound.Volume
+                end
+                sound.Volume = 0
+            else
+                sound.Volume = originalVolumes[soundName] or 0.5
+            end
+        end
+    end
+
+    local mergeFolder = audioFolder:FindFirstChild("Merge")
+    if mergeFolder then
+        local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
+        for _, soundName in ipairs(mergeSounds) do
+            local sound = mergeFolder:FindFirstChild(soundName)
+            if sound and sound:IsA("Sound") then
+                if mutePetSoundsEnabled then
+                    if not originalVolumes[soundName] then
+                        originalVolumes[soundName] = sound.Volume
+                    end
+                    sound.Volume = 0
+                else
+                    sound.Volume = originalVolumes[soundName] or 0.5
+                end
+            end
+        end
+    end
+end
+
+task.defer(function()
+    repeat task.wait() until Library.Flags
+    for flag, value in pairs(config) do
+        if Library.Flags[flag] then
+            pcall(function()
+                Library.Flags[flag]:Set(value)
+            end)
+        end
+    end
+
+    local maxRetries = 5
+    local retryDelay = 1
+    for i = 1, maxRetries do
+        if disableNotificationsEnabled then
+            applyNotificationsState()
+            if Players.LocalPlayer:FindFirstChild("PlayerGui") and Players.LocalPlayer.PlayerGui:FindFirstChild("Notifications") then
+                break
+            end
+        end
+        task.wait(retryDelay)
+    end
 end)
 
-if autoKey ~= "" and verifyKey(autoKey) then
-	loadSwordburst()
-	return
+function startAutoSpiritualPressureUpgrade()
+    task.spawn(function()
+        -- Unlock Spiritual Pressure first
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Spiritual_Pressure_Unlock"
+            }
+        }
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(unlockArgs))
+        end)
+        -- Wait to ensure unlock is processed
+        task.wait(2) -- Adjust delay if needed based on server response time
+        while autoSpiritualPressureUpgradeEnabled and getgenv().SeisenHubRunning do
+            local upgradeArgs = {
+                [1] = {
+                    ["Upgrading_Name"] = "Spiritual_Pressure",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Spiritual_Pressure"
+                }
+            }
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(upgradeArgs))
+            end)
+            task.wait(2)
+        end
+    end)
 end
 
---// Clean up if rerun
-pcall(function() game.CoreGui.KeySystemUI:Destroy() end)
+function startAutoRollReiatsuColor()
+    task.spawn(function()
+        -- Unlock Reiatsu Color first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Reiatsu_Color_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollReiatsuColorEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Reiatsu_Color",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
 
---// UI
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "KeySystemUI"
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
+local function startAutoRollZanpakuto()
+    task.spawn(function()
+        -- Unlock Zanpakuto first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Zanpakuto_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollZanpakutoEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Zanpakuto",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
 
-local Shadow = Instance.new("Frame", ScreenGui)
-Shadow.Size = UDim2.new(0, 310, 0, 230)
-Shadow.Position = UDim2.new(0.5, -149, 0.5, -109)
-Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Shadow.BackgroundTransparency = 0.8
-Shadow.BorderSizePixel = 0
-Shadow.ZIndex = 0
-Instance.new("UICorner", Shadow).CornerRadius = UDim.new(0, 10)
+function startAutoCursedProgressionUpgrade()
+    task.spawn(function()
+        -- Unlock Cursed Progression first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Cursed_Progression_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep upgrading while enabled
+        while autoCursedProgressionUpgradeEnabled and getgenv().SeisenHubRunning do
+            local upgradeArgs = {
+                [1] = {
+                    ["Upgrading_Name"] = "Curse",
+                    ["Action"] = "_Upgrades",
+                    ["Upgrade_Name"] = "Cursed_Progression",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(upgradeArgs))
+            end)
+            task.wait(2)
+        end
+    end)
+end
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 310, 0, 230)
-Frame.Position = UDim2.new(0.5, -155, 0.5, -115)
-Frame.BackgroundColor3 = Color3.fromRGB(34, 34, 38)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.ZIndex = 1
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", Frame).Color = Color3.fromRGB(60, 60, 70)
+local function startAutoRollCurses()
+    task.spawn(function()
+        -- Unlock Curses first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Curses_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollCursesEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Curses",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
 
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, -30, 0, 35)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.Text = "🔑 Seisen Hub Key System"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.ZIndex = 2
-Title.TextXAlignment = Enum.TextXAlignment.Left
+function startAutoObelisk()
+    task.spawn(function()
+        local obeliskTypes = {
+            "Dragon_Obelisk",
+            "Slayer_Obelisk",
+            "Pirate_Obelisk",
+            "Soul_Obelisk",
+            "Demon_Obeslisk",
+            "Spirit_Obelisk",
+            "Knight_Obelisk",
+            "Warrior_Obelisk",
+            "Archer_Obelisk",
+        }
+        while autoObeliskEnabled and getgenv().SeisenHubRunning do
+            for _, obeliskType in ipairs(obeliskTypes) do
+                pcall(function()
+                    ToServer:FireServer({
+                        Upgrading_Name = "Obelisk",
+                        Action = "_Upgrades",
+                        Upgrade_Name = obeliskType
+                    })
+                end)
+                task.wait(0.2)
+            end
+            task.wait(1)
+        end
+    end)
+end
 
-local Close = Instance.new("TextButton", Frame)
-Close.Text = "✖"
-Close.Size = UDim2.new(0, 25, 0, 25)
-Close.Position = UDim2.new(1, -30, 0, 5)
-Close.BackgroundTransparency = 1
-Close.TextColor3 = Color3.fromRGB(200, 80, 80)
-Close.Font = Enum.Font.GothamBold
-Close.TextSize = 18
-Close.ZIndex = 2
-Close.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
+
+-- 🧠 FPS Boost Logic
+local originalFPSValues = {}
+local originalLightingValues = {}
+local originalTerrainValues = {}
+local originalRenderingQuality = nil
+
+local function applyFPSBoostToInstance(obj)
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        -- Save original transparency if not already saved
+        if originalFPSValues[obj] == nil then
+            originalFPSValues[obj] = {Transparency = obj.Transparency}
+        end
+        obj.Transparency = 1
+    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+        if originalFPSValues[obj] == nil then
+            originalFPSValues[obj] = {Enabled = obj.Enabled}
+        end
+        obj.Enabled = false
+    end
+end
+
+local function enableFPSBoost()
+    if game:FindFirstChild("Lighting") then
+        local Lighting = game.Lighting
+        -- Save original lighting values
+        if not originalLightingValues.GlobalShadows then
+            originalLightingValues.GlobalShadows = Lighting.GlobalShadows
+            originalLightingValues.FogEnd = Lighting.FogEnd
+            originalLightingValues.Brightness = Lighting.Brightness
+        end
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100000
+        Lighting.Brightness = 1
+    end
+
+    if workspace:FindFirstChild("Terrain") then
+        local Terrain = workspace.Terrain
+        -- Save original terrain values
+        if not originalTerrainValues.WaterWaveSize then
+            originalTerrainValues.WaterWaveSize = Terrain.WaterWaveSize
+            originalTerrainValues.WaterWaveSpeed = Terrain.WaterWaveSpeed
+            originalTerrainValues.WaterReflectance = Terrain.WaterReflectance
+            originalTerrainValues.WaterTransparency = Terrain.WaterTransparency
+        end
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+    end
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        applyFPSBoostToInstance(obj)
+    end
+
+    if settings().Rendering then
+        if not originalRenderingQuality then
+            originalRenderingQuality = settings().Rendering.QualityLevel
+        end
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end
+end
+
+local fpsBoostConnection
+local function setupFPSBoostListener()
+    if fpsBoostConnection then
+        fpsBoostConnection:Disconnect()
+        fpsBoostConnection = nil
+    end
+    if fpsBoostEnabled then
+        fpsBoostConnection = workspace.DescendantAdded:Connect(function(obj)
+            applyFPSBoostToInstance(obj)
+        end)
+    end
+end
+
+local function disableFPSBoost()
+    if fpsBoostConnection then
+        fpsBoostConnection:Disconnect()
+        fpsBoostConnection = nil
+    end
+    
+    -- Restore original lighting values
+    if game:FindFirstChild("Lighting") and originalLightingValues.GlobalShadows ~= nil then
+        local Lighting = game.Lighting
+        Lighting.GlobalShadows = originalLightingValues.GlobalShadows
+        Lighting.FogEnd = originalLightingValues.FogEnd
+        Lighting.Brightness = originalLightingValues.Brightness
+    end
+
+    -- Restore original terrain values
+    if workspace:FindFirstChild("Terrain") and originalTerrainValues.WaterWaveSize ~= nil then
+        local Terrain = workspace.Terrain
+        Terrain.WaterWaveSize = originalTerrainValues.WaterWaveSize
+        Terrain.WaterWaveSpeed = originalTerrainValues.WaterWaveSpeed
+        Terrain.WaterReflectance = originalTerrainValues.WaterReflectance
+        Terrain.WaterTransparency = originalTerrainValues.WaterTransparency
+    end
+
+    -- Restore original values for all affected objects
+    for obj, props in pairs(originalFPSValues) do
+        if obj and obj.Parent then
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                obj.Transparency = props.Transparency or 0
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                obj.Enabled = props.Enabled == nil and true or props.Enabled
+            end
+        end
+    end
+    
+    -- Restore original rendering quality
+    if settings().Rendering and originalRenderingQuality then
+        settings().Rendering.QualityLevel = originalRenderingQuality
+    end
+    
+    -- Clear all stored original values
+    originalFPSValues = {}
+    originalLightingValues = {}
+    originalTerrainValues = {}
+    originalRenderingQuality = nil
+end
+
+local function applyFPSBoostState()
+    if fpsBoostEnabled then
+        enableFPSBoost()
+        setupFPSBoostListener()
+    else
+        disableFPSBoost()
+    end
+end
+
+local function startAutoRollDemonArts()
+    task.spawn(function()
+        -- Unlock Demon Arts first (only once)
+        local unlockArgs = {
+            [1] = {
+                ["Upgrading_Name"] = "Unlock",
+                ["Action"] = "_Upgrades",
+                ["Upgrade_Name"] = "Demon_Arts_Unlock",
+            }
+        }
+        pcall(function()
+            ToServer:FireServer(unpack(unlockArgs))
+        end)
+        -- Now keep rolling while enabled
+        while autoRollDemonArtsEnabled and getgenv().SeisenHubRunning do
+            local rollArgs = {
+                [1] = {
+                    ["Open_Amount"] = 1,
+                    ["Action"] = "_Gacha_Activate",
+                    ["Name"] = "Demon_Arts",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(rollArgs))
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+
+
+local redeemCodes = {
+    "Update8", "JewelFix2", "240KFAV", "250KFAV", "Update8P2", "80KLIKES", "JewelFix", "12KPlayers", "13KPlayers",
+    "14KPlayers", "Update8P1", "75KLIKES", "Update8", "70KLIKES", "11KPlayers", "230KFAV", "13MVISITS", "BugFixesUp7",
+    "10KPlayers", "ObeliskBug", "Update7Part2", "220KFav", "12MVISITS", "65KLikes", "9KPlayers", "Update7Part1",
+    "60KLIKES", "55KLIKES", "8KPlayers", "10MVISITS", "210KFav", "50KLikes", "195KAV", "200KFAV", "Update6QoL",
+    "Refresh", "175KFAV", "Update6", "5MVisits", "6MVisits", "190KFAV", "Update5Part2", "45KLIKES", "140KFAV",
+    "160KFAV", "4MVisits", "SorryForShutdown3", "SomeBugFix1", "40KLikes", "Update5Part1", "30KLIKES", "125KFAV",
+    "7KPlayers", "35KLIKES", "SorryForShutdown2", "SorryForSouls", "3MVISITS", "SorryForDelay2", "60KFav", "75KFav",
+    "2MVisits", "Update3Part2", "20KLikes", "SorryForDelay1", "6KPlayers", "Update4", "25KLIKES", "100KFAV", "16KPlayers","85KLIKES","Update9Part1","90KLIKES","260KFAV"
+}
+
+local function redeemAllCodes()
+    print("Redeeming codes...") -- debug
+    for _, code in ipairs(redeemCodes) do
+        print("Redeeming:", code) -- debug
+        local args = {
+            [1] = {
+                ["Action"] = "_Redeem_Code",
+                ["Text"] = code,
+            }
+        }
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(args))
+        end)
+        task.wait(0.5)
+    end
+end
+
+
+function startAutoDeleteGacha()
+    task.spawn(function()
+        while config.AutoDeleteGachaUnitsToggle and getgenv().SeisenHubRunning do
+            for rarity, enabled in pairs(selectedGachaRarities) do
+                if enabled then
+                    local args = {
+                        [1] = {
+                            ["Value"] = true,
+                            ["Path"] = {"Settings", "AutoDelete", "Gachas", "3000"..rarity, rarity},
+                            ["Action"] = "Settings"
+                        }
+                    }
+                    pcall(function()
+                        game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("To_Server", 9e9):FireServer(unpack(args))
+                    end)
+                end
+            end
+            task.wait(2)
+        end
+    end)
+end
+
+
+
+
+
+if isAuraEnabled then startAutoFarm() end
+if fastKillAuraEnabled then startFastKillAura() end
+if slowKillAuraEnabled then startSlowKillAura() end
+if autoRankEnabled then startAutoRank() end
+if autoAvatarLevelingEnabled then startAutoAvatarLeveling() end
+if autoAcceptAllQuestsEnabled then startAutoQuests() end
+if autoClaimAchievementsEnabled then startAutoAchievements() end
+if autoRollDragonRaceEnabled then startAutoRollDragonRace() end
+if autoRollSaiyanEvolutionEnabled then startAutoRollSaiyanEvolution() end
+if autoRollEnabled then startAutoRollStars() end
+if autoDeleteEnabled then startAutoDelete() end
+if autoStatsRunning then startAutoStats() end
+if isAutoTimeRewardEnabled then startAutoTimeReward() end
+if isAutoDailyChestEnabled then startAutoDailyChest() end
+if isAutoVipChestEnabled then startAutoVipChest() end
+if isAutoGroupChestEnabled then startAutoGroupChest() end
+if isAutoPremiumChestEnabled then startAutoPremiumChest() end
+if autoEnterDungeon then startAutoEnterDungeon() end
+if autoUpgradeEnabled then startAutoUpgrade() end
+if autoRollSwordsEnabled then startAutoRollSwords() end
+if autoRollPirateCrewEnabled then startAutoRollPirateCrew() end
+if autoRollDemonFruitsEnabled then startAutoRollDemonFruits() end
+if autoHakiUpgradeEnabled then startAutoHakiUpgrade() end
+if autoAttackRangeUpgradeEnabled then startAutoAttackRangeUpgrade() end
+if autoRollReiatsuColorEnabled then startAutoRollReiatsuColor() end
+if disableNotificationsEnabled then applyNotificationsState() end
+if mutePetSoundsEnabled then applyMutePetSoundsState() end
+if autoRollZanpakutoEnabled then startAutoRollZanpakuto() end
+if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() end
+if autoRollCursesEnabled then startAutoRollCurses() end
+if autoObeliskEnabled then startAutoObelisk() end
+if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
+if fpsBoostEnabled then applyFPSBoostState() end
+if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
+if autoSpiritualPressureUpgradeEnabled then startAutoSpiritualPressureUpgrade() end
+
+
+-- Auto Farm Toggle
+local AutoFarmToggle = LeftGroupbox:AddToggle("AutoFarmToggle", {
+    Text = "Auto Farm (Kill Aura + Teleport)",
+    Default = isAuraEnabled,
+    Callback = function(Value)
+        disableAllAurasExcept("AutoFarm")
+        config.AutoFarmToggle = Value
+        isAuraEnabled = Value
+        if Value then startAutoFarm() end
+        saveConfig()
+    end
+})
+
+-- Add a keybind to Auto Farm
+AutoFarmToggle:AddKeyPicker("AutoFarmKeybind", {
+    Default = "F",
+    Text = "Auto Farm Keybind",
+    Mode = "Toggle", -- "Toggle", "Hold", "Always"
+    SyncToggleState = true, -- Syncs the toggle with the keybind
+    Callback = function(Value)
+        -- This will automatically toggle the UI and run the Callback above
+        -- You can add extra logic here if needed
+        print("Auto Farm keybind pressed, value:", Value)
+    end
+})
+
+
+-- Slow Auto Farm Toggle
+LeftGroupbox:AddToggle("FastKillAuraToggle", {
+    Text = "Slow Auto Farm",
+    Default = fastKillAuraEnabled,
+    Callback = function(Value)
+        disableAllAurasExcept("FastKillAura")
+        fastKillAuraEnabled = Value
+        config.FastKillAuraToggle = Value
+        if Value then startFastKillAura() end
+        saveConfig()
+    end
+})
+
+-- Fast Kill Aura Toggle
+LeftGroupbox:AddToggle("SlowKillAuraToggle", {
+    Text = "Fast Kill Aura",
+    Default = slowKillAuraEnabled,
+    Callback = function(Value)
+        disableAllAurasExcept("SlowKillAura")
+        slowKillAuraEnabled = Value
+        config.SlowKillAuraToggle = Value
+        if Value then startSlowKillAura() end
+        saveConfig()
+    end
+})
+
+-- Auto Rank Toggle
+LeftGroupbox:AddToggle("AutoRankToggle", {
+    Text = "Auto Rank",
+    Default = autoRankEnabled,
+    Callback = function(Value)
+        autoRankEnabled = Value
+        config.AutoRankToggle = Value
+        if Value then startAutoRank() end
+        saveConfig()
+    end
+})
+
+-- Auto Avatar Leveling Toggle
+LeftGroupbox:AddToggle("AutoAvatarLevelingToggle", {
+    Text = "Auto Avatar Leveling",
+    Default = autoAvatarLevelingEnabled,
+    Callback = function(Value)
+        autoAvatarLevelingEnabled = Value
+        config.AutoAvatarLevelingToggle = Value
+        if Value then
+            startAutoAvatarLeveling()
+        else
+            -- Only call this ONCE when toggled off
+            local argsOff = {
+                [1] = {
+                    ["Value"] = false,
+                    ["Path"] = { "Settings", "Is_Auto_Avatar_Leveling" },
+                    ["Action"] = "Settings",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(argsOff))
+            end)
+        end
+        saveConfig()
+    end
+})
+
+-- Auto Accept Quests Toggle
+LeftGroupbox:AddToggle("AutoAcceptAllQuestsToggle", {
+    Text = "Auto Accept & Claim All Quests",
+    Default = autoAcceptAllQuestsEnabled,
+    Callback = function(Value)
+        autoAcceptAllQuestsEnabled = Value
+        config.AutoAcceptAllQuestsToggle = Value
+        if Value then startAutoQuests() end
+        saveConfig()
+    end
+})
+
+-- Auto Claim Achievements Toggle
+LeftGroupbox:AddToggle("AutoClaimAchievement", {
+    Text = "Auto Achievements",
+    Default = autoClaimAchievementsEnabled,
+    Callback = function(Value)
+        autoClaimAchievementsEnabled = Value
+        config.AutoClaimAchievement = Value
+        if Value then startAutoAchievements() end
+        saveConfig()
+    end
+})
+
+LeftGroupbox:AddToggle("AutoObeliskToggle", {
+    Text = "Auto Obelisk Upgrade",
+    Default = autoObeliskEnabled,
+    Callback = function(Value)
+        autoObeliskEnabled = Value
+        config.AutoObeliskToggle = Value
+        saveConfig()
+        if Value then
+            startAutoObelisk()
+        end
+    end
+})
+
+
+
+-- Auto Roll Dragon Race Toggle
+RollGroupbox2:AddToggle("AutoRollDragonRaceToggle", {
+    Text = "Auto Roll Dragon Race",
+    Default = autoRollDragonRaceEnabled,
+    Callback = function(Value)
+        autoRollDragonRaceEnabled = Value
+        config.AutoRollDragonRaceToggle = Value
+        if Value then startAutoRollDragonRace() end
+        saveConfig()
+    end
+})
+
+-- Auto Roll Saiyan Evolution Toggle
+RollGroupbox2:AddToggle("AutoRollSaiyanEvolutionToggle", {
+    Text = "Auto Roll Saiyan Evolution",
+    Default = autoRollSaiyanEvolutionEnabled,
+    Callback = function(Value)
+        autoRollSaiyanEvolutionEnabled = Value
+        config.AutoRollSaiyanEvolutionToggle = Value
+        if Value then startAutoRollSaiyanEvolution() end
+        saveConfig()
+    end
+})
+
+-- Auto Roll Stars Toggle
+local AutoRollStarsToggle = RollGroupbox:AddToggle("AutoRollStarsToggle", {
+    Text = "Auto Roll Stars",
+    Default = autoRollEnabled,
+    Callback = function(Value)
+        autoRollEnabled = Value
+        config.AutoRollStarsToggle = Value
+        if Value then startAutoRollStars() end
+        saveConfig()
+    end
+})
+
+-- Add a keybind to Auto Roll Stars
+AutoRollStarsToggle:AddKeyPicker("AutoRollStarsKeybind", {
+    Default = "R",
+    Text = "Auto Roll Stars Keybind",
+    Mode = "Toggle", -- "Toggle", "Hold", "Always"
+    SyncToggleState = true, -- Syncs the toggle with the keybind
+    Callback = function(Value)
+        print("Auto Roll Stars keybind pressed, value:", Value)
+    end
+})
+
+local placeToStar = {
+    ["Earth City"] = "Star_1",
+    ["Windmill Island"] = "Star_2",
+    ["Soul Society"] = "Star_3",
+    ["Cursed School"] = "Star_4",
+    ["Slayer Village"] = "Star_5",
+    ["Solo Island"] = "Star_6",
+    ["Clover Village"] = "Star_7",
+    ["Leaf Village"] = "Star_8",
+    ["Spirit Residence"] = "Star_9",
+    ["Magic_Hunter_City"] = "Star_10",
+    ["Titan Village"] = "Star_11",
+    ["Villageof Sins"] = "Star_12",
+    ["Dungeon Lobby 1"] = "Star_13"
+}
+local starToPlace = {}
+for place, star in pairs(placeToStar) do
+    starToPlace[star] = place
+end
+-- Select Star Dropdown
+RollGroupbox:AddDropdown("SelectStarDropdown", {
+    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island", "Soul Society", "Cursed School", "Slayer Village", "Solo Island", "Clover Village", "Leaf Village", "Spirit Residence", "Magic_Hunter_City", "Titan Village", "Villageof Sins"},
+    Default = starToPlace[selectedStar] or "Earth City",
+    Multi = false,
+    Text = "Select Star (by Place)",
+    Callback = function(Option)
+        selectedStar = placeToStar[Option] or "Star_1"
+        config.SelectStarDropdown = selectedStar
+        saveConfig()
+    end
+})
+
+-- Delay Slider
+RollGroupbox:AddSlider("DelayBetweenRollsSlider", {
+    Text = "Delay Between Rolls",
+    Min = 0.5,
+    Max = 2,
+    Default = delayBetweenRolls,
+    Suffix = "s",
+    Callback = function(Value)
+        delayBetweenRolls = Value
+        config.DelayBetweenRollsSlider = Value
+        saveConfig()
+    end
+})
+
+-- Auto Roll Swords
+RollGroupbox2:AddToggle("AutoRollSwordsToggle", {
+    Text = "Auto Roll Swords",
+    Default = autoRollSwordsEnabled,
+    Callback = function(Value)
+        autoRollSwordsEnabled = Value
+        config.AutoRollSwordsToggle = Value
+        if Value then startAutoRollSwords() end
+        saveConfig()
+    end
+})
+
+-- Auto Roll Pirate Crew
+RollGroupbox2:AddToggle("AutoRollPirateCrewToggle", {
+    Text = "Auto Roll Pirate Crew",
+    Default = autoRollPirateCrewEnabled,
+    Callback = function(Value)
+        autoRollPirateCrewEnabled = Value
+        config.AutoRollPirateCrewToggle = Value
+        if Value then startAutoRollPirateCrew() end
+        saveConfig()
+    end
+})
+
+-- Auto Roll Demon Fruits
+RollGroupbox2:AddToggle("AutoRollDemonFruitsToggle", {
+    Text = "Auto Roll Demon Fruits",
+    Default = autoRollDemonFruitsEnabled,
+    Callback = function(Value)
+        autoRollDemonFruitsEnabled = Value
+        config.AutoRollDemonFruitsToggle = Value
+        if Value then startAutoRollDemonFruits() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollReiatsuColorToggle", {
+    Text = "Auto Roll Reiatsu Color",
+    Default = autoRollReiatsuColorEnabled,
+    Callback = function(Value)
+        autoRollReiatsuColorEnabled = Value
+        config.AutoRollReiatsuColorToggle = Value
+        if Value then startAutoRollReiatsuColor() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollZanpakutoToggle", {
+    Text = "Auto Roll Zanpakuto",
+    Default = autoRollZanpakutoEnabled,
+    Callback = function(Value)
+        autoRollZanpakutoEnabled = Value
+        config.AutoRollZanpakutoToggle = Value
+        if Value then startAutoRollZanpakuto() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollCursesToggle", {
+    Text = "Auto Roll Curses",
+    Default = autoRollCursesEnabled,
+    Callback = function(Value)
+        autoRollCursesEnabled = Value
+        config.AutoRollCursesToggle = Value
+        if Value then startAutoRollCurses() end
+        saveConfig()
+    end
+})
+
+RollGroupbox2:AddToggle("AutoRollDemonArtsToggle", {
+    Text = "Auto Roll Demon Arts",
+    Default = autoRollDemonArtsEnabled,
+    Callback = function(Value)
+        autoRollDemonArtsEnabled = Value
+        config.AutoRollDemonArtsToggle = Value
+        if Value then startAutoRollDemonArts() end
+        saveConfig()
+    end
+})
+
+-- Auto Delete Settings
+AutoDeleteGroupbox:AddLabel("Auto Delete Settings")
+
+-- Auto Delete Toggle
+AutoDeleteGroupbox:AddToggle("AutoDeleteUnitsToggle", {
+    Text = "Auto Delete Units",
+    Default = autoDeleteEnabled,
+    Callback = function(Value)
+        autoDeleteEnabled = Value
+        config.AutoDeleteUnitsToggle = Value
+        if Value then startAutoDelete() end
+        saveConfig()
+    end
+})
+
+-- Select Star for Auto Delete Dropdown
+AutoDeleteGroupbox:AddDropdown("SelectDeleteStarDropdown", {
+    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island", "Soul Society", "Cursed School", "Slayer Village", "Solo Island", "Clover Village", "Leaf Village", "Spirit Residence", "Magic_Hunter_City", "Titan Village", "Villageof Sins"},
+    Default = starToPlace[selectedDeleteStar] or "Earth City",
+    Multi = false,
+    Text = "Select Star for Auto Delete (by Place)",
+    Callback = function(Option)
+        selectedDeleteStar = placeToStar[Option] or "Star_1"
+        config.SelectDeleteStarDropdown = selectedDeleteStar
+        saveConfig()
+    end
+})
+
+local rarityMap = {
+    Common = "1",
+    Uncommon = "2",
+    Rare = "3",
+    Epic = "4",
+    Legendary = "5",
+    Mythical = "6"
+}
+for _, displayName in ipairs(selectedRaritiesDisplay) do
+    if rarityMap[displayName] then
+        selectedRarities[rarityMap[displayName]] = true
+    end
+end
+
+-- Auto Delete Rarities Dropdown
+AutoDeleteGroupbox:AddDropdown("AutoDeleteRaritiesDropdown", {
+    Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical"},
+    Default = selectedRaritiesDisplay,
+    Multi = true,
+    Text = "Select Rarities to Delete",
+    Callback = function(Selected)
+        selectedRarities = {}
+        for displayName, _ in pairs(Selected) do
+            if rarityMap[displayName] then
+                selectedRarities[rarityMap[displayName]] = true
+            end
+        end
+        config.AutoDeleteRaritiesDropdown = {}
+        for displayName, _ in pairs(Selected) do
+            table.insert(config.AutoDeleteRaritiesDropdown, displayName)
+        end
+        saveConfig()
+    end
+})
+
+AutoDeleteGroupbox2:AddToggle("AutoDeleteGachaUnitsToggle", {
+    Text = "Auto Delete Gacha Units",
+    Default = config.AutoDeleteGachaUnitsToggle or false,
+    Callback = function(Value)
+        config.AutoDeleteGachaUnitsToggle = Value
+        if Value then startAutoDeleteGacha() end
+        saveConfig()
+    end
+})
+
+AutoDeleteGroupbox2:AddDropdown("AutoDeleteGachaRaritiesDropdown", {
+    Values = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Secret"},
+    Default = selectedGachaRarities,
+    Multi = true,
+    Text = "Select Gacha Rarities to Delete",
+    Callback = function(Selected)
+        selectedGachaRarities = {}
+        for displayName, _ in pairs(Selected) do
+            if gachaRarityMap[displayName] then
+                selectedGachaRarities[gachaRarityMap[displayName]] = true
+            end
+        end
+        config.AutoDeleteGachaRaritiesDropdown = {}
+        for displayName, _ in pairs(Selected) do
+            table.insert(config.AutoDeleteGachaRaritiesDropdown, displayName)
+        end
+        saveConfig()
+    end
+})
+
+-- Auto Stats
+
+
+
+StatsGroupbox:AddDropdown("AutoStatSingleDropdown", {
+    Values = stats,
+    Default = selectedStat, -- display name
+    Multi = false,
+    Text = "Select Stat",
+    Callback = function(Value)
+        selectedStat = Value -- display name
+        config.AutoStatSingleDropdown = Value
+        saveConfig()
+    end
+})
+
+StatsGroupbox:AddToggle("AutoAssignStatToggle", {
+    Text = "Enable Auto Stat",
+    Default = autoStatsRunning,
+    Callback = function(Value)
+        autoStatsRunning = Value
+        config.AutoAssignStatToggle = Value
+        if Value then startAutoStats() end
+        saveConfig()
+    end
+})
+
+StatsGroupbox:AddSlider("PointsPerSecondSlider", {
+    Text = "Points/Second",
+    Default = pointsPerSecond,
+    Min = 1,
+    Max = 10,
+    Rounding = 0,
+    Callback = function(Value)
+        pointsPerSecond = Value
+        config.PointsPerSecondSlider = Value
+        saveConfig()
+    end
+})
+
+-- Auto Collect Rewards
+RewardsGroupbox:AddToggle("AutoClaimTimeRewardToggle", {
+    Text = "Auto Claim Time Reward",
+    Default = isAutoTimeRewardEnabled,
+    Callback = function(Value)
+        isAutoTimeRewardEnabled = Value
+        config.AutoClaimTimeRewardToggle = Value
+        if Value then startAutoTimeReward() end
+        saveConfig()
+    end
+})
+
+RewardsGroupbox:AddToggle("AutoClaimDailyChestToggle", {
+    Text = "Auto Claim Daily Chest",
+    Default = isAutoDailyChestEnabled,
+    Callback = function(Value)
+        isAutoDailyChestEnabled = Value
+        config.AutoClaimDailyChestToggle = Value
+        if Value then startAutoDailyChest() end
+        saveConfig()
+    end
+})
+
+RewardsGroupbox:AddToggle("AutoClaimVipChestToggle", {
+    Text = "Auto Claim Vip Chest (VIP Gamepass required)",
+    Default = isAutoVipChestEnabled,
+    Callback = function(Value)
+        isAutoVipChestEnabled = Value
+        config.AutoClaimVipChestToggle = Value
+        if Value then startAutoVipChest() end
+        saveConfig()
+    end
+})
+
+RewardsGroupbox:AddToggle("AutoClaimGroupChestToggle", {
+    Text = "Auto Claim Group Chest",
+    Default = isAutoGroupChestEnabled,
+    Callback = function(Value)
+        isAutoGroupChestEnabled = Value
+        config.AutoClaimGroupChestToggle = Value
+        if Value then startAutoGroupChest() end
+        saveConfig()
+    end
+})
+
+RewardsGroupbox:AddToggle("AutoClaimPremiumChestToggle", {
+    Text = "Auto Claim Premium Chest (Premium User required)",
+    Default = isAutoPremiumChestEnabled,
+    Callback = function(Value)
+        isAutoPremiumChestEnabled = Value
+        config.AutoClaimPremiumChestToggle = Value
+        if Value then startAutoPremiumChest() end
+        saveConfig()
+    end
+})
+
+-- Teleport
+local teleportLocations = {
+    ["Dungeon Lobby 1"] = "Dungeon_Lobby_1",
+    ["Earth City"] = "Earth_City",
+    ["Windmill Island"] = "Windmill_Island",
+    ["Soul Society"] = "Soul_Society",
+    ["Cursed School"] = "Cursed_School",
+    ["Slayer Village"] = "Slayer_Village",
+    ["Solo Island"] = "Solo_Island",
+    ["Clover Village"] = "Clover_Village",
+    ["Leaf Village"] = "Leaf_Village",
+    ["Spirit Residence"] = "Spirit_Residence",
+    ["Magic Hunter_City"] = "Magic_Hunter_City",
+    ["Titan Village"] = "Titan_Village",
+    ["Villageof Sins"] = "Village_of_Sins",
+}
+
+TPGroupbox:AddDropdown("MainTeleportDropdown", {
+    Values = {"Earth City", "Dungeon Lobby 1", "Windmill Island", "Soul Society", "Cursed School", "Slayer Village", "Solo Island", "Clover Village", "Leaf Village", "Spirit Residence", "Magic_Hunter_City", "Titan Village", "Villageof Sins"},
+    Default = config.MainTeleportDropdown or "Earth City",
+    Multi = false,
+    Text = "Teleport To",
+    Callback = function(selected)
+        local locationKey = teleportLocations[selected]
+        if locationKey then
+            local args = {
+                [1] = {
+                    ["Location"] = locationKey,
+                    ["Type"] = "Map",
+                    ["Action"] = "Teleport",
+                }
+            }
+            pcall(function()
+                ToServer:FireServer(unpack(args))
+            end)
+        end
+        config.MainTeleportDropdown = selected
+        saveConfig()
+    end
+})
+
+-- Dungeon Toggles
+local dungeonList = {
+    "Dungeon_Easy",
+    "Dungeon_Medium",
+    "Dungeon_Hard",
+    "Dungeon_Insane",
+    "Dungeon_Crazy",
+    "Leaf_Raid"
+}
+
+for _, dungeon in ipairs(dungeonList) do
+    local default = table.find(selectedDungeons, dungeon) ~= nil
+    DungeonGroupbox:AddToggle("Toggle_" .. dungeon, {
+        Text = dungeon:gsub("_", " "),
+        Default = default,
+        Callback = function(Value)
+            if Value then
+                if not table.find(selectedDungeons, dungeon) then
+                    table.insert(selectedDungeons, dungeon)
+                end
+            else
+                for i, v in ipairs(selectedDungeons) do
+                    if v == dungeon then
+                        table.remove(selectedDungeons, i)
+                        break
+                    end
+                end
+            end
+            config.SelectedDungeons = selectedDungeons
+            saveConfig()
+        end
+    })
+end
+
+-- Toggle: Auto enter dungeon
+DungeonGroupbox:AddToggle("AutoEnterDungeonToggle", {
+    Text = "Auto Enter Dungeon(s)",
+    Default = autoEnterDungeon,
+    Callback = function(Value)
+        autoEnterDungeon = Value
+        config.AutoEnterDungeonToggle = Value
+        saveConfig()
+        if Value then
+            startAutoEnterDungeon()
+        end
+    end
+})
+
+-- Upgrades
+local upgradeOptions = {
+    "Star_Luck", "Damage", "Energy", "Coins", "Drops",
+    "Avatar_Souls_Drop", "Movement_Speed", "Fast_Roll", "Star_Speed"
+}
+enabledUpgrades = enabledUpgrades or {}
+for _, upgradeName in ipairs(upgradeOptions) do
+    enabledUpgrades[upgradeName] = config[upgradeName .. "_Toggle"] or false
+end
+
+UpgradeGroupbox:AddToggle("AutoUpgradeToggle", {
+    Text = "Auto Upgrade",
+    Default = autoUpgradeEnabled,
+    Callback = function(Value)
+        autoUpgradeEnabled = Value
+        config.AutoUpgradeToggle = Value
+        if Value then startAutoUpgrade() end
+        saveConfig()
+    end
+})
+
+UpgradeGroupbox:AddLabel("Upgrade List")
+for _, upgradeName in ipairs(upgradeOptions) do
+    UpgradeGroupbox:AddToggle(upgradeName .. "_Toggle", {
+        Text = upgradeName:gsub("_", " "),
+        Default = enabledUpgrades[upgradeName],
+        Callback = function(Value)
+            enabledUpgrades[upgradeName] = Value
+            config[upgradeName .. "_Toggle"] = Value
+            saveConfig()
+        end
+    })
+end
+
+-- Auto Upgrade Haki
+Upgrade2:AddToggle("AutoHakiUpgradeToggle", {
+    Text = "Auto Haki Upgrade",
+    Default = autoHakiUpgradeEnabled,
+    Callback = function(Value)
+        autoHakiUpgradeEnabled = Value
+        config.AutoHakiUpgradeToggle = Value
+        if Value then startAutoHakiUpgrade() end
+        saveConfig()
+    end
+})
+
+Upgrade2:AddToggle("AutoAttackRangeUpgradeToggle", {
+    Text = "Auto Attack Range Upgrade",
+    Default = autoAttackRangeUpgradeEnabled,
+    Callback = function(Value)
+        autoAttackRangeUpgradeEnabled = Value
+        config.AutoAttackRangeUpgradeToggle = Value
+        if Value then startAutoAttackRangeUpgrade() end
+        saveConfig()
+    end
+})
+
+Upgrade2:AddToggle("AutoSpiritualPressureUpgradeToggle", {
+    Text = "Auto Spiritual Pressure Upgrade",
+    Default = autoSpiritualPressureUpgradeEnabled,
+    Callback = function(Value)
+        autoSpiritualPressureUpgradeEnabled = Value
+        config.AutoSpiritualPressureUpgradeToggle = Value
+        if Value then startAutoSpiritualPressureUpgrade() end
+        saveConfig()
+    end
+})
+
+Upgrade2:AddToggle("AutoCursedProgressionUpgradeToggle", {
+    Text = "Auto Cursed Progression Upgrade",
+    Default = autoCursedProgressionUpgradeEnabled,
+    Callback = function(Value)
+        autoCursedProgressionUpgradeEnabled = Value
+        config.AutoCursedProgressionUpgradeToggle = Value
+        if Value then startAutoCursedProgressionUpgrade() end
+        saveConfig()
+    end
+})
+
+-- Disable Sound
+UnloadGroupbox:AddToggle("MutePetSoundsToggle", {
+    Text = "Mute Pet Sounds",
+    Default = mutePetSoundsEnabled,
+    Callback = function(Value)
+        mutePetSoundsEnabled = Value
+        config.MutePetSoundsToggle = Value
+        applyMutePetSoundsState()
+        saveConfig()
+    end
+})
+
+-- UI Settings
+UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
+    Text = "Disable Notifications",
+    Default = disableNotificationsEnabled,
+    Callback = function(Value)
+        disableNotificationsEnabled = Value
+        config.DisableNotificationsToggle = Value
+        applyNotificationsState()
+        saveConfig()
+    end
+})
+
+
+UnloadGroupbox:AddToggle("FPSBoostToggle", {
+    Text = "FPS Boost (Lower Graphics)",
+    Default = fpsBoostEnabled,
+    Callback = function(Value)
+        fpsBoostEnabled = Value
+        config.FPSBoostToggle = Value
+        applyFPSBoostState()
+        saveConfig()
+    end
+})
+
+
+RedeemGroupbox:AddToggle("AutoRedeemCodesToggle", {
+    Text = "Auto Redeem All Codes",
+    Default = autoRedeemCodesEnabled,
+    Callback = function(Value)
+        autoRedeemCodesEnabled = Value
+        if Value then
+            task.spawn(redeemAllCodes)
+        end
+    end
+})
+
+
+local scaleOptions = {}
+local scaleLabels = {}
+for i = 50, 120, 10 do
+    local label = tostring(i) .. "%"
+    scaleOptions[label] = i
+    table.insert(scaleLabels, label)
+end
+local defaultScale = config.UIScaleDropdown or "100%"
+
+UnloadGroupbox:AddDropdown("UIScaleDropdown", {
+    Values = scaleLabels,
+    Default = defaultScale,
+    Multi = false,
+    Text = "UI Scale",
+    Callback = function(selected)
+        local scale = scaleOptions[selected] or 100
+        config.UIScaleDropdown = selected
+        saveConfig()
+        Library:SetDPIScale(scale)
+    end
+})
+
+-- On load, apply saved scale
+task.defer(function()
+    local selected = config.UIScaleDropdown or "100%"
+    local scale = scaleOptions[selected] or 100
+    Library:SetDPIScale(scale)
 end)
 
-local KeyBox = Instance.new("TextBox", Frame)
-KeyBox.PlaceholderText = "Enter Key Here"
-KeyBox.Size = UDim2.new(0.9, 0, 0, 30)
-KeyBox.Position = UDim2.new(0.05, 0, 0, 45)
-KeyBox.Text = ""
-KeyBox.TextSize = 14
-KeyBox.ClearTextOnFocus = false
-KeyBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-KeyBox.TextColor3 = Color3.new(1,1,1)
-KeyBox.Font = Enum.Font.Gotham
-KeyBox.ZIndex = 2
-Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", KeyBox).Color = Color3.fromRGB(70, 70, 80)
+UnloadGroupbox:AddToggle("ShowCustomCursorToggle", {
+    Text = "Show Custom Cursor",
+    Default = config.ShowCustomCursorToggle ~= false, -- default true if not set
+    Callback = function(Value)
+        Library.ShowCustomCursor = Value
+        config.ShowCustomCursorToggle = Value
+        saveConfig()
+    end
+})
 
-local GetKeyBtn = Instance.new("TextButton", Frame)
-GetKeyBtn.Text = "📎 Get Key"
-GetKeyBtn.Size = UDim2.new(0.43, 0, 0, 30)
-GetKeyBtn.Position = UDim2.new(0.05, 0, 0, 90)
-GetKeyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-GetKeyBtn.Font = Enum.Font.Gotham
-GetKeyBtn.TextSize = 14
-GetKeyBtn.ZIndex = 2
-Instance.new("UICorner", GetKeyBtn).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", GetKeyBtn).Color = Color3.fromRGB(80, 80, 90)
-
-local CheckKeyBtn = Instance.new("TextButton", Frame)
-CheckKeyBtn.Text = "✔️ Check Key"
-CheckKeyBtn.Size = UDim2.new(0.43, 0, 0, 30)
-CheckKeyBtn.Position = UDim2.new(0.52, 0, 0, 90)
-CheckKeyBtn.BackgroundColor3 = Color3.fromRGB(65, 65, 70)
-CheckKeyBtn.TextColor3 = Color3.new(1, 1, 1)
-CheckKeyBtn.Font = Enum.Font.Gotham
-CheckKeyBtn.TextSize = 14
-CheckKeyBtn.ZIndex = 2
-Instance.new("UICorner", CheckKeyBtn).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", CheckKeyBtn).Color = Color3.fromRGB(90, 90, 100)
-
-local DiscordBtn = Instance.new("TextButton", Frame)
-DiscordBtn.Text = "📱 Discord"
-DiscordBtn.Size = UDim2.new(0.9, 0, 0, 25)
-DiscordBtn.Position = UDim2.new(0.05, 0, 0, 140)
-DiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-DiscordBtn.TextColor3 = Color3.new(1, 1, 1)
-DiscordBtn.Font = Enum.Font.Gotham
-DiscordBtn.TextSize = 12
-DiscordBtn.ZIndex = 2
-Instance.new("UICorner", DiscordBtn).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", DiscordBtn).Color = Color3.fromRGB(108, 121, 262)
-
-StatusLabel = Instance.new("TextLabel", Frame)
-StatusLabel.Text = "Status: Waiting..."
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 30)
-StatusLabel.Position = UDim2.new(0.05, 0, 0, 195)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextSize = 14
-StatusLabel.TextWrapped = true
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.ZIndex = 2
-
---// Dragging Logic
-local UIS = game:GetService("UserInputService")
-local dragging, dragInput, mousePos, framePos = false
-
-Frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		mousePos = input.Position
-		framePos = Frame.Position
-
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+-- On load, apply saved cursor state
+task.defer(function()
+    if config.ShowCustomCursorToggle == nil then
+        Library.ShowCustomCursor = true
+    else
+        Library.ShowCustomCursor = config.ShowCustomCursorToggle
+    end
 end)
 
-Frame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
-	end
+
+UnloadGroupbox:AddButton("Unload Seisen Hub", function()
+    getgenv().SeisenHubRunning = false
+    isAuraEnabled = false
+    fastKillAuraEnabled = false
+    slowKillAuraEnabled = false
+    autoRankEnabled = false
+    autoAvatarLevelingEnabled = false
+    autoAcceptAllQuestsEnabled = false
+    autoRollDragonRaceEnabled = false
+    autoRollSaiyanEvolutionEnabled = false
+    autoRollEnabled = false
+    autoDeleteEnabled = false
+    autoClaimAchievementsEnabled = false
+    autoRollSwordsEnabled = false
+    autoRollPirateCrewEnabled = false
+    isAutoTimeRewardEnabled = false
+    isAutoDailyChestEnabled = false
+    isAutoVipChestEnabled = false
+    isAutoGroupChestEnabled = false
+    isAutoPremiumChestEnabled = false
+    autoUpgradeEnabled = false
+    autoEnterDungeon = false
+    autoHakiUpgradeEnabled = false
+    autoRollDemonFruitsEnabled = false
+    autoAttackRangeUpgradeEnabled = false
+    autoAvatarLevelingEnabled = false
+    autoSpiritualPressureUpgradeEnabled = false
+    selectedStat = false
+    autoRollZanpakutoEnabledfalse = false
+    autoCursedProgressionUpgradeEnabled = false
+    autoRollCursesEnabled = false
+    autoObeliskEnabled = false
+    selectedObeliskType = false
+    selectedGachaRarities = false
+    autoRollDemonArtsEnabled = false
+
+    disableFPSBoost()
+    
+    local argsOff = {
+        [1] = {
+            ["Value"] = false,
+            ["Path"] = { "Settings", "Is_Auto_Clicker" },
+            ["Action"] = "Settings",
+        }
+    }
+    pcall(function()
+        ToServer:FireServer(unpack(argsOff))
+    end)
+
+    if mutePetSoundsEnabled then
+        local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
+        if audioFolder then
+            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
+            for _, soundName in ipairs(petSounds) do
+                local sound = audioFolder:FindFirstChild(soundName)
+                if sound and sound:IsA("Sound") then
+                    sound.Volume = originalVolumes[soundName] or 0.5
+                end
+            end
+            local mergeFolder = audioFolder:FindFirstChild("Merge")
+            if mergeFolder then
+                local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
+                for _, soundName in ipairs(mergeSounds) do
+                    local sound = mergeFolder:FindFirstChild(soundName)
+                    if sound and sound:IsA("Sound") then
+                        sound.Volume = originalVolumes[soundName] or 0.5
+                    end
+                end
+            end
+        end
+    end
+
+    if disableNotificationsEnabled then
+        local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local notifications = playerGui:FindFirstChild("Notifications")
+            if notifications then
+                if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+                    notifications.Enabled = true
+                elseif notifications:IsA("GuiObject") then
+                    notifications.Visible = true
+                end
+            end
+        end
+    end
+
+    if Library and Library.Unload then
+        pcall(function()
+            Library:Unload()
+        end)
+    elseif getgenv().SeisenHubUI and getgenv().SeisenHubUI.Parent then
+        pcall(function()
+            getgenv().SeisenHubUI:Destroy()
+        end)
+    end
+
+    if getgenv().SeisenHubConnections then
+        for _, conn in ipairs(getgenv().SeisenHubConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
+        getgenv().SeisenHubConnections = nil
+    end
+
+    getgenv().SeisenHubUI = nil
+    getgenv().SeisenHubLoaded = nil
+    getgenv().SeisenHubRunning = nil
+    getgenv().SeisenHubConfig = nil
 end)
 
-UIS.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - mousePos
-		Frame.Position = UDim2.new(
-			framePos.X.Scale,
-			framePos.X.Offset + delta.X,
-			framePos.Y.Scale,
-			framePos.Y.Offset + delta.Y
-		)
-		Shadow.Position = Frame.Position + UDim2.new(0, 6, 0, 6)
-	end
-end)
+task.defer(function()
+    repeat task.wait() until Library.Flags
+    for flag, value in pairs(config) do
+        if Library.Flags[flag] then
+            pcall(function()
+                Library.Flags[flag]:Set(value)
+            end)
+        end
+    end
 
--- Button Events
-GetKeyBtn.MouseButton1Click:Connect(copyLink)
+    if disableNotificationsEnabled then
+        local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local notifications = playerGui:FindFirstChild("Notifications")
+            if notifications then
+                if notifications:IsA("ScreenGui") or notifications:IsA("BillboardGui") or notifications:IsA("SurfaceGui") then
+                    notifications.Enabled = false
+                elseif notifications:IsA("GuiObject") then
+                    notifications.Visible = false
+                end
+            end
+        end
+    end
 
-CheckKeyBtn.MouseButton1Click:Connect(function()
-	local key = KeyBox.Text
-	if key == "" then
-		onMessage("Please enter a key.")
-		return
-	end
-	onMessage("Verifying key...")
-	local valid = verifyKey(key)
-	
-	-- Send webhook log
-	sendWebhookLog(key, valid)
-	
-	if valid then
-		ScreenGui:Destroy()
-		loadSwordburst()
-	end
-end)
-
-DiscordBtn.MouseButton1Click:Connect(function()
-	local discordLink = "https://discord.gg/CQ2tFjkn4C"
-	fSetClipboard(discordLink)
-	onMessage("Discord invite copied!")
-	
-	-- Optional: Show a brief success message
-	local successGui = Instance.new("ScreenGui", game.CoreGui)
-	successGui.Name = "DiscordCopySuccess"
-	
-	local successFrame = Instance.new("Frame", successGui)
-	successFrame.Size = UDim2.new(0, 200, 0, 50)
-	successFrame.Position = UDim2.new(0.5, -100, 0.8, -25)
-	successFrame.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-	successFrame.BorderSizePixel = 0
-	Instance.new("UICorner", successFrame).CornerRadius = UDim.new(0, 8)
-	
-	local successText = Instance.new("TextLabel", successFrame)
-	successText.Size = UDim2.new(1, 0, 1, 0)
-	successText.Text = "📱 Discord invite copied!"
-	successText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	successText.BackgroundTransparency = 1
-	successText.Font = Enum.Font.GothamBold
-	successText.TextSize = 14
-	
-	-- Auto-remove after 3 seconds
-	task.wait(3)
-	successGui:Destroy()
+    if mutePetSoundsEnabled then
+        local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
+        if audioFolder then
+            local petSounds = {"Pets_Appearing_Sound", "Pets_Drumroll", "Loot"}
+            for _, soundName in ipairs(petSounds) do
+                local sound = audioFolder:FindFirstChild(soundName)
+                if sound and sound:IsA("Sound") then
+                    if not originalVolumes[soundName] then
+                        originalVolumes[soundName] = sound.Volume
+                    end
+                    sound.Volume = 0
+                end
+            end
+            local mergeFolder = audioFolder:FindFirstChild("Merge")
+            if mergeFolder then
+                local mergeSounds = {"PetsAppearingSound", "Drumroll", "ChestOpen"}
+                for _, soundName in ipairs(mergeSounds) do
+                    local sound = mergeFolder:FindFirstChild(soundName)
+                    if sound and sound:IsA("Sound") then
+                        if not originalVolumes[soundName] then
+                            originalVolumes[soundName] = sound.Volume
+                        end
+                        sound.Volume = 0
+                    end
+                end
+            end
+        end
+    end
 end)
