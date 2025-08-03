@@ -68,15 +68,6 @@ local teleportOffset = Vector3.new(0, 0, -3)
 local attackCooldown = 0.1
 local currentTarget = nil
 
-if not getgenv().SeisenHubAntiAFK then
-    getgenv().SeisenHubAntiAFK = true
-    Players.LocalPlayer.Idled:Connect(function()
-        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    end)
-end
-
 
 local RunService = game:GetService("RunService")
 local jumpConnection
@@ -144,7 +135,6 @@ local autoRollReiatsuColorEnabled = false
 local autoRollZanpakutoEnabled = false
 local config = getgenv().SeisenHubConfig or {}
 local autoCursedProgressionUpgradeEnabled = false
-local antiAFKEnabled = false
 local autoRollCursesEnabled = false
 local autoObeliskEnabled = false
 local fpsBoostEnabled = false
@@ -1437,7 +1427,6 @@ local function disableFPSBoost()
     end
 end
 
-
 local function applyFPSBoostState()
     if fpsBoostEnabled then
         enableFPSBoost()
@@ -1531,25 +1520,23 @@ function startAutoDeleteGacha()
 end
 
 
-local autoJumpLoopStarted = false
-
 local function startAutoJump()
     task.spawn(function()
-        while getgenv().SeisenHubRunning do
-            if autoJumpEnabled then
-                local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
-                local humanoid = character:FindFirstChildWhichIsA("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                end
-                print("[AutoJump] Jumped")
+        while autoJumpEnabled and getgenv().SeisenHubRunning do
+            local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping and rootPart then
+                -- Force the character to jump by applying upward velocity
+                local currentVelocity = rootPart.Velocity
+                rootPart.Velocity = Vector3.new(currentVelocity.X, humanoid.JumpPower, currentVelocity.Z)
             end
-            task.wait(10)
+            
+            task.wait(5) -- jump every 5 seconds
         end
     end)
 end
-
-
 
 
 if isAuraEnabled then startAutoFarm() end
@@ -1584,7 +1571,7 @@ if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() 
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
-if fpsBoostEnabled then applyFPSBoostState() end
+if fpsBoostEnabled then setupFPSBoostListener() end
 if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
 if autoJumpEnabled then startAutoJump() end
 
@@ -2248,12 +2235,14 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
 })
 
 
+
 UnloadGroupbox:AddToggle("AutoJumpToggle", {
     Text = "Auto Jump (every 5s)",
     Default = autoJumpEnabled,
     Callback = function(Value)
         autoJumpEnabled = Value
         config.AutoJumpToggle = Value
+        if Value then startAutoJump() end
         saveConfig()
     end
 })
@@ -2265,11 +2254,10 @@ UnloadGroupbox:AddToggle("FPSBoostToggle", {
     Callback = function(Value)
         fpsBoostEnabled = Value
         config.FPSBoostToggle = Value
-        saveConfig()
         applyFPSBoostState()
+        saveConfig()
     end
 })
-
 
 
 RedeemGroupbox:AddToggle("AutoRedeemCodesToggle", {
@@ -2321,20 +2309,11 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     selectedGachaRarities = false
     autoRollDemonArtsEnabled = false
     autoJumpEnabled = false
-    fpsBoostEnabled = false
     getgenv().SeisenHubAntiAFK = false
     if getgenv().SeisenHubAntiAFKConn then
         pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
         getgenv().SeisenHubAntiAFKConn = nil
     end
-
-    disableFPSBoost()
-    originalFPSValues = {}
-    if fpsBoostConnection then
-        pcall(function() fpsBoostConnection:Disconnect() end)
-        fpsBoostConnection = nil
-    end
-
 
     local argsOff = {
         [1] = {
