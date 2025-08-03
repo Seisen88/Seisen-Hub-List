@@ -71,9 +71,29 @@ local currentTarget = nil
 if not getgenv().SeisenHubAntiAFK then
     getgenv().SeisenHubAntiAFK = true
     Players.LocalPlayer.Idled:Connect(function()
-        VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
         task.wait(1)
-        VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end)
+end
+
+
+local RunService = game:GetService("RunService")
+local jumpConnection
+local autoJumpEnabled = false
+
+local function startAutoJump()
+    task.spawn(function()
+        while autoJumpEnabled and getgenv().SeisenHubRunning do
+            local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+
+            if humanoid then
+                humanoid.Jump = true -- reliable method
+            end
+
+            task.wait(5)
+        end
     end)
 end
 
@@ -133,6 +153,7 @@ local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 local autoRollDemonArtsEnabled = false
 local autoRedeemCodesEnabled = false
 local selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
+local autoJumpEnabled = config.AutoJumpToggle or false
 
 -- Stats options (display names)
 local stats = {
@@ -217,6 +238,7 @@ autoObeliskEnabled = config.AutoObeliskToggle or false
 selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
 fpsBoostEnabled = config.FPSBoostToggle or false
 autoRollDemonArtsEnabled = config.AutoRollDemonArtsToggle or false
+autoJumpEnabled = config.AutoJumpToggle or false
 selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
 
 -- Helper to save config
@@ -1415,6 +1437,7 @@ local function disableFPSBoost()
     end
 end
 
+
 local function applyFPSBoostState()
     if fpsBoostEnabled then
         enableFPSBoost()
@@ -1507,6 +1530,28 @@ function startAutoDeleteGacha()
     end)
 end
 
+
+local autoJumpLoopStarted = false
+
+local function startAutoJump()
+    task.spawn(function()
+        while getgenv().SeisenHubRunning do
+            if autoJumpEnabled then
+                local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+                local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+                print("[AutoJump] Jumped")
+            end
+            task.wait(10)
+        end
+    end)
+end
+
+
+
+
 if isAuraEnabled then startAutoFarm() end
 if fastKillAuraEnabled then startFastKillAura() end
 if slowKillAuraEnabled then startSlowKillAura() end
@@ -1539,21 +1584,9 @@ if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() 
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
-if fpsBoostEnabled then setupFPSBoostListener() end
+if fpsBoostEnabled then applyFPSBoostState() end
 if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
-if antiAFKEnabled then
-    getgenv().SeisenHubAntiAFK = true
-    if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
-        getgenv().SeisenHubAntiAFKConn = task.spawn(function()
-            while antiAFKEnabled and getgenv().SeisenHubRunning do
-                VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(0.1)
-                VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(10)
-            end
-        end)
-    end
-end
+if autoJumpEnabled then startAutoJump() end
 
 -- Auto Farm Toggle
 LeftGroupbox:AddToggle("AutoFarmToggle", {
@@ -2215,27 +2248,13 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
 })
 
 
--- Add this toggle to your UI settings groupbox
-UnloadGroupbox:AddToggle("AntiAFKToggle", {
-    Text = "Enable Anti-AFK (left click every 10s)",
-    Default = antiAFKEnabled,
+UnloadGroupbox:AddToggle("AutoJumpToggle", {
+    Text = "Auto Jump (every 5s)",
+    Default = autoJumpEnabled,
     Callback = function(Value)
-        antiAFKEnabled = Value
-        getgenv().SeisenHubAntiAFK = Value
-        config.AntiAFKToggle = Value
+        autoJumpEnabled = Value
+        config.AutoJumpToggle = Value
         saveConfig()
-        if Value then
-            if not getgenv().SeisenHubAntiAFKConn or not getgenv().SeisenHubAntiAFKConn.Connected then
-                getgenv().SeisenHubAntiAFKConn = task.spawn(function()
-                    while antiAFKEnabled and getgenv().SeisenHubRunning do
-                        VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                        task.wait(0.1)
-                        VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                        task.wait(10)
-                    end
-                end)
-            end
-        end
     end
 })
 
@@ -2246,10 +2265,11 @@ UnloadGroupbox:AddToggle("FPSBoostToggle", {
     Callback = function(Value)
         fpsBoostEnabled = Value
         config.FPSBoostToggle = Value
-        applyFPSBoostState()
         saveConfig()
+        applyFPSBoostState()
     end
 })
+
 
 
 RedeemGroupbox:AddToggle("AutoRedeemCodesToggle", {
@@ -2300,11 +2320,21 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     antiAFKEnabled = false
     selectedGachaRarities = false
     autoRollDemonArtsEnabled = false
+    autoJumpEnabled = false
+    fpsBoostEnabled = false
     getgenv().SeisenHubAntiAFK = false
     if getgenv().SeisenHubAntiAFKConn then
         pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
         getgenv().SeisenHubAntiAFKConn = nil
     end
+
+    disableFPSBoost()
+    originalFPSValues = {}
+    if fpsBoostConnection then
+        pcall(function() fpsBoostConnection:Disconnect() end)
+        fpsBoostConnection = nil
+    end
+
 
     local argsOff = {
         [1] = {
