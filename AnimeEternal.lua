@@ -285,7 +285,7 @@ end
 local function loadSwordburst()
 	task.spawn(function()
 		local success, err = pcall(function()
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/Swordburst3_Test.lua"))()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/refs/heads/main/AnimeEternal.lua"))()
 		end)
 		if not success then
 			warn("Failed to load Swordburst:", err)
