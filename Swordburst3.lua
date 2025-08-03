@@ -13,7 +13,7 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1401568771679846541/6ojRCX
 
 --// HWID Ban System
 local BANNED_HWIDS = {
-		"dcf114ca-b099-4da8-8a93-2f1654ea6baa"
+		"05F598B8-70FE-4D18-9375-6CC2FB770EAC"
 }
 
 -- Config
@@ -114,38 +114,93 @@ local function checkHWIDBan()
 		warn("Stop trying to bypass the key system.")
 		
 		-- Show bypass warning notification
-		local banGui = Instance.new("ScreenGui", game.CoreGui)
-		banGui.Name = "BypassWarningNotification"
-		
-		local banFrame = Instance.new("Frame", banGui)
-		banFrame.Size = UDim2.new(0, 450, 0, 180)
-		banFrame.Position = UDim2.new(0.5, -225, 0.5, -90)
-		banFrame.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-		banFrame.BorderSizePixel = 0
-		Instance.new("UICorner", banFrame).CornerRadius = UDim.new(0, 10)
-		Instance.new("UIStroke", banFrame).Color = Color3.fromRGB(255, 100, 100)
-		
-		local banTitle = Instance.new("TextLabel", banFrame)
-		banTitle.Size = UDim2.new(1, 0, 0, 50)
-		banTitle.Position = UDim2.new(0, 0, 0, 0)
-		banTitle.Text = "🚫 STOP BYPASSING THE KEY"
-		banTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-		banTitle.BackgroundTransparency = 1
-		banTitle.Font = Enum.Font.GothamBold
-		banTitle.TextSize = 22
-		
-		local banMessage = Instance.new("TextLabel", banFrame)
-		banMessage.Size = UDim2.new(1, -20, 0, 100)
-		banMessage.Position = UDim2.new(0, 10, 0, 60)
-		banMessage.Text = "Your device is banned from using this system.\n\nHWID: " .. hwid .. "\n\nStop trying to bypass the key system.\nContact support if you believe this is an error."
-		banMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
-		banMessage.BackgroundTransparency = 1
-		banMessage.Font = Enum.Font.Gotham
-		banMessage.TextSize = 14
-		banMessage.TextWrapped = true
+        -- Show bypass warning notification
+        local banGui = Instance.new("ScreenGui")
+        banGui.Name = "BypassWarningNotification"
+        banGui.ResetOnSpawn = false
+        banGui.Parent = game.CoreGui
+
+        local banFrame = Instance.new("Frame")
+        banFrame.Size = UDim2.new(0, 460, 0, 240)
+        banFrame.Position = UDim2.new(0.5, -230, 0.5, -120)
+        banFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        banFrame.BorderSizePixel = 0
+        banFrame.Parent = banGui
+
+        Instance.new("UICorner", banFrame).CornerRadius = UDim.new(0, 12)
+
+        local stroke = Instance.new("UIStroke", banFrame)
+        stroke.Color = Color3.fromRGB(255, 85, 85)
+        stroke.Thickness = 2
+
+        -- Padding
+        local padding = Instance.new("UIPadding", banFrame)
+        padding.PaddingTop = UDim.new(0, 15)
+        padding.PaddingBottom = UDim.new(0, 15)
+        padding.PaddingLeft = UDim.new(0, 15)
+        padding.PaddingRight = UDim.new(0, 15)
+
+        -- Vertical layout
+        local layout = Instance.new("UIListLayout", banFrame)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 10)
+
+        -- Title
+        local banTitle = Instance.new("TextLabel")
+        banTitle.Size = UDim2.new(1, 0, 0, 35)
+        banTitle.Text = "🚫 STOP BYPASSING THE KEY"
+        banTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        banTitle.BackgroundTransparency = 1
+        banTitle.Font = Enum.Font.GothamBold
+        banTitle.TextSize = 20
+        banTitle.LayoutOrder = 1
+        banTitle.Parent = banFrame
+
+        -- Message
+        local banMessage = Instance.new("TextLabel")
+        banMessage.Size = UDim2.new(1, 0, 0, 100)
+        banMessage.Text = "Your device is banned from using this system.\n\nHWID: " .. hwid .. "\n\nStop trying to bypass the key system. Contact support if you believe this is an error."
+        banMessage.TextColor3 = Color3.fromRGB(220, 220, 220)
+        banMessage.BackgroundTransparency = 1
+        banMessage.Font = Enum.Font.Gotham
+        banMessage.TextSize = 14
+        banMessage.TextWrapped = true
+        banMessage.TextYAlignment = Enum.TextYAlignment.Top
+        banMessage.TextXAlignment = Enum.TextXAlignment.Left
+        banMessage.LayoutOrder = 2
+        banMessage.Parent = banFrame
+
+		local discordBtn = Instance.new("TextButton")
+		discordBtn.Text = "📱 Join Discord"
+		discordBtn.Size = UDim2.new(1, 0, 0, 36)
+		discordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+		discordBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		discordBtn.Font = Enum.Font.GothamBold
+		discordBtn.TextSize = 16
+		discordBtn.LayoutOrder = 4
+		discordBtn.Parent = banFrame
+
+		Instance.new("UICorner", discordBtn).CornerRadius = UDim.new(0, 10)
+		local discordStroke = Instance.new("UIStroke", discordBtn)
+		discordStroke.Color = Color3.fromRGB(108, 121, 262)
+		discordStroke.Thickness = 1.5
+
+		banMessage.Text = "Your device is banned from using this system.\n\nHWID: " .. hwid .. "\n\nStop trying to bypass the key system. Contact support if you believe this is an error.\n\nJoin our Discord to appeal your ban."
+
+		-- ...inside discordBtn.MouseButton1Click:
+		discordBtn.MouseButton1Click:Connect(function()
+			local discordLink = "https://discord.gg/CQ2tFjkn4C"
+			if fSetClipboard then
+				fSetClipboard(discordLink)
+				banMessage.Text = "Discord invite copied to clipboard!\n\nHWID: " .. hwid .. "\n\nJoin our Discord to appeal your ban."
+			else
+				banMessage.Text = "Clipboard not supported. Copy manually:\n" .. discordLink .. "\n\nHWID: " .. hwid .. "\n\nJoin our Discord to appeal your ban."
+			end
+		end)
+
 		
 		-- Auto-remove after 10 seconds
-		task.wait(10)
+		task.wait(20)
 		banGui:Destroy()
 		
 		return true -- User is banned
