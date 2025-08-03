@@ -70,23 +70,6 @@ local currentTarget = nil
 
 
 local RunService = game:GetService("RunService")
-local jumpConnection
-local autoJumpEnabled = false
-
-local function startAutoJump()
-    task.spawn(function()
-        while autoJumpEnabled and getgenv().SeisenHubRunning do
-            local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
-            local humanoid = character:FindFirstChildWhichIsA("Humanoid")
-
-            if humanoid then
-                humanoid.Jump = true -- reliable method
-            end
-
-            task.wait(5)
-        end
-    end)
-end
 
 local configFolder = "SeisenHub"
 local configFile = configFolder .. "/seisen_hub_AE.txt"
@@ -143,7 +126,7 @@ local selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 local autoRollDemonArtsEnabled = false
 local autoRedeemCodesEnabled = false
 local selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
-local autoJumpEnabled = config.AutoJumpToggle or false
+
 
 -- Stats options (display names)
 local stats = {
@@ -223,12 +206,12 @@ selectedDungeons = config.SelectedDungeons or {"Dungeon_Easy"}
 autoRollZanpakutoEnabled = config.AutoRollZanpakutoToggle or false
 autoCursedProgressionUpgradeEnabled = config.AutoCursedProgressionUpgradeToggle or false
 autoRollCursesEnabled = config.AutoRollCursesToggle or false
-antiAFKEnabled = config.AntiAFKToggle or false
+
 autoObeliskEnabled = config.AutoObeliskToggle or false
 selectedObeliskType = config.SelectedObeliskType or "Slayer_Obelisk"
 fpsBoostEnabled = config.FPSBoostToggle or false
 autoRollDemonArtsEnabled = config.AutoRollDemonArtsToggle or false
-autoJumpEnabled = config.AutoJumpToggle or false
+
 selectedGachaRarities = config.AutoDeleteGachaRaritiesDropdown or {}
 
 -- Helper to save config
@@ -1338,7 +1321,13 @@ function startAutoObelisk()
         local obeliskTypes = {
             "Dragon_Obelisk",
             "Slayer_Obelisk",
-            "Pirate_Obelisk"
+            "Pirate_Obelisk",
+            "Soul_Obelisk",
+            "Demon_Obeslisk",
+            "Spirit_Obelisk",
+            "Knight_Obelisk",
+            "Warrior_Obelisk",
+            "Archer_Obelisk",
         }
         while autoObeliskEnabled and getgenv().SeisenHubRunning do
             for _, obeliskType in ipairs(obeliskTypes) do
@@ -1571,23 +1560,7 @@ function startAutoDeleteGacha()
 end
 
 
-local function startAutoJump()
-    task.spawn(function()
-        while autoJumpEnabled and getgenv().SeisenHubRunning do
-            local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            
-            if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping and rootPart then
-                -- Force the character to jump by applying upward velocity
-                local currentVelocity = rootPart.Velocity
-                rootPart.Velocity = Vector3.new(currentVelocity.X, humanoid.JumpPower, currentVelocity.Z)
-            end
-            
-            task.wait(5) -- jump every 5 seconds
-        end
-    end)
-end
+
 
 
 if isAuraEnabled then startAutoFarm() end
@@ -1624,7 +1597,7 @@ if autoObeliskEnabled then startAutoObelisk() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
 if fpsBoostEnabled then applyFPSBoostState() end
 if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
-if autoJumpEnabled then startAutoJump() end
+
 
 -- Auto Farm Toggle
 LeftGroupbox:AddToggle("AutoFarmToggle", {
@@ -2287,16 +2260,7 @@ UnloadGroupbox:AddToggle("DisableNotificationsToggle", {
 
 
 
-UnloadGroupbox:AddToggle("AutoJumpToggle", {
-    Text = "Auto Jump (every 5s)",
-    Default = autoJumpEnabled,
-    Callback = function(Value)
-        autoJumpEnabled = Value
-        config.AutoJumpToggle = Value
-        if Value then startAutoJump() end
-        saveConfig()
-    end
-})
+
 
 
 UnloadGroupbox:AddToggle("FPSBoostToggle", {
@@ -2356,20 +2320,10 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     autoRollCursesEnabled = false
     autoObeliskEnabled = false
     selectedObeliskType = false
-    antiAFKEnabled = false
     selectedGachaRarities = false
     autoRollDemonArtsEnabled = false
-    autoJumpEnabled = false
-    
-    -- Store FPS boost state before disabling it
-    local wasFPSBoostEnabled = fpsBoostEnabled
-    fpsBoostEnabled = false
-    getgenv().SeisenHubAntiAFK = false
-    if getgenv().SeisenHubAntiAFKConn then
-        pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
-        getgenv().SeisenHubAntiAFKConn = nil
-    end
 
+    
     local argsOff = {
         [1] = {
             ["Value"] = false,
