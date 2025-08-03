@@ -285,7 +285,7 @@ end
 local function loadSwordburst()
 	task.spawn(function()
 		local success, err = pcall(function()
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/main/Dungeonheroes.lua"))()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/Seisen88/Seisen-Hub-List/main/DungeonHeroes_Test.lua"))()
 		end)
 		if not success then
 			warn("Failed to load Swordburst:", err)
