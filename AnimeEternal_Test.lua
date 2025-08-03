@@ -350,13 +350,36 @@ local function startFastKillAura()
             ToServer:FireServer(unpack(argsActivator))
         end)
         while fastKillAuraEnabled and getgenv().SeisenHubRunning do
-            local monster = getNearestValidMonster()
-            if monster then
-                local hum = monster:FindFirstChild("Humanoid")
-                if hum and hum.Health > 0 then
+            local char = localPlayer.Character
+            local myHRP = char and char:FindFirstChild("HumanoidRootPart")
+
+            if not myHRP then
+                task.wait(0.1)
+                continue
+            end
+
+            -- Check if currentTarget is invalid or too far
+            local maxDistance = 50
+            if not currentTarget or not currentTarget:IsDescendantOf(monstersFolder)
+                or not currentTarget:FindFirstChild("Humanoid")
+                or currentTarget.Humanoid.Health <= 0
+                or (currentTarget:FindFirstChild("HumanoidRootPart") and (currentTarget.HumanoidRootPart.Position - myHRP.Position).Magnitude > maxDistance) then
+                currentTarget = getNearestValidMonster()
+                if currentTarget then
+                    teleportToMonster(currentTarget)
+                    task.wait(0.6) -- Small delay after teleporting
+                end
+                continue
+            end
+
+            if currentTarget and myHRP then
+                local hrp = currentTarget:FindFirstChild("HumanoidRootPart")
+                local hum = currentTarget:FindFirstChild("Humanoid")
+
+                if hrp and hum and hum.Health > 0 then
                     local argsAttack = {
                         [1] = {
-                            ["Id"] = monster.Name,
+                            ["Id"] = currentTarget.Name,
                             ["Action"] = "_Mouse_Click",
                         }
                     }
@@ -412,7 +435,7 @@ local function startSlowKillAura()
                     end)
                 end
             end
-            task.wait(0.2)
+            task.wait(0.05) -- Much faster attack speed
         end
     end)
 end
@@ -1334,10 +1357,11 @@ function startAutoObelisk()
 end
 
 
-local isFPSBoosted = false
-
 -- 🧠 FPS Boost Logic
 local originalFPSValues = {}
+local originalLightingValues = {}
+local originalTerrainValues = {}
+local originalRenderingQuality = nil
 
 local function applyFPSBoostToInstance(obj)
     if obj:IsA("Decal") or obj:IsA("Texture") then
@@ -1357,16 +1381,30 @@ end
 local function enableFPSBoost()
     if game:FindFirstChild("Lighting") then
         local Lighting = game.Lighting
+        -- Save original lighting values
+        if not originalLightingValues.GlobalShadows then
+            originalLightingValues.GlobalShadows = Lighting.GlobalShadows
+            originalLightingValues.FogEnd = Lighting.FogEnd
+            originalLightingValues.Brightness = Lighting.Brightness
+        end
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 100000
         Lighting.Brightness = 1
     end
 
     if workspace:FindFirstChild("Terrain") then
-        workspace.Terrain.WaterWaveSize = 0
-        workspace.Terrain.WaterWaveSpeed = 0
-        workspace.Terrain.WaterReflectance = 0
-        workspace.Terrain.WaterTransparency = 1
+        local Terrain = workspace.Terrain
+        -- Save original terrain values
+        if not originalTerrainValues.WaterWaveSize then
+            originalTerrainValues.WaterWaveSize = Terrain.WaterWaveSize
+            originalTerrainValues.WaterWaveSpeed = Terrain.WaterWaveSpeed
+            originalTerrainValues.WaterReflectance = Terrain.WaterReflectance
+            originalTerrainValues.WaterTransparency = Terrain.WaterTransparency
+        end
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
     end
 
     for _, obj in ipairs(workspace:GetDescendants()) do
@@ -1374,6 +1412,9 @@ local function enableFPSBoost()
     end
 
     if settings().Rendering then
+        if not originalRenderingQuality then
+            originalRenderingQuality = settings().Rendering.QualityLevel
+        end
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
     end
 end
@@ -1396,21 +1437,25 @@ local function disableFPSBoost()
         fpsBoostConnection:Disconnect()
         fpsBoostConnection = nil
     end
-    if game:FindFirstChild("Lighting") then
+    
+    -- Restore original lighting values
+    if game:FindFirstChild("Lighting") and originalLightingValues.GlobalShadows ~= nil then
         local Lighting = game.Lighting
-        Lighting.GlobalShadows = true
-        Lighting.FogEnd = 1000
-        Lighting.Brightness = 2
+        Lighting.GlobalShadows = originalLightingValues.GlobalShadows
+        Lighting.FogEnd = originalLightingValues.FogEnd
+        Lighting.Brightness = originalLightingValues.Brightness
     end
 
-    if workspace:FindFirstChild("Terrain") then
-        workspace.Terrain.WaterWaveSize = 0.1
-        workspace.Terrain.WaterWaveSpeed = 10
-        workspace.Terrain.WaterReflectance = 1
-        workspace.Terrain.WaterTransparency = 0.5
+    -- Restore original terrain values
+    if workspace:FindFirstChild("Terrain") and originalTerrainValues.WaterWaveSize ~= nil then
+        local Terrain = workspace.Terrain
+        Terrain.WaterWaveSize = originalTerrainValues.WaterWaveSize
+        Terrain.WaterWaveSpeed = originalTerrainValues.WaterWaveSpeed
+        Terrain.WaterReflectance = originalTerrainValues.WaterReflectance
+        Terrain.WaterTransparency = originalTerrainValues.WaterTransparency
     end
 
-    -- Restore original values
+    -- Restore original values for all affected objects
     for obj, props in pairs(originalFPSValues) do
         if obj and obj.Parent then
             if obj:IsA("Decal") or obj:IsA("Texture") then
@@ -1420,11 +1465,17 @@ local function disableFPSBoost()
             end
         end
     end
-    originalFPSValues = {}
-
-    if settings().Rendering then
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+    
+    -- Restore original rendering quality
+    if settings().Rendering and originalRenderingQuality then
+        settings().Rendering.QualityLevel = originalRenderingQuality
     end
+    
+    -- Clear all stored original values
+    originalFPSValues = {}
+    originalLightingValues = {}
+    originalTerrainValues = {}
+    originalRenderingQuality = nil
 end
 
 local function applyFPSBoostState()
@@ -1571,13 +1622,13 @@ if autoCursedProgressionUpgradeEnabled then startAutoCursedProgressionUpgrade() 
 if autoRollCursesEnabled then startAutoRollCurses() end
 if autoObeliskEnabled then startAutoObelisk() end
 if autoRollDemonArtsEnabled then startAutoRollDemonArts() end
-if fpsBoostEnabled then setupFPSBoostListener() end
+if fpsBoostEnabled then applyFPSBoostState() end
 if config.AutoDeleteGachaUnitsToggle then startAutoDeleteGacha() end
 if autoJumpEnabled then startAutoJump() end
 
 -- Auto Farm Toggle
 LeftGroupbox:AddToggle("AutoFarmToggle", {
-    Text = "Auto Farm (Kill Aura + Teleport)",
+    Text = "Fast Auto Farm",
     Default = isAuraEnabled,
     Callback = function(Value)
         disableAllAurasExcept("AutoFarm")
@@ -1588,9 +1639,9 @@ LeftGroupbox:AddToggle("AutoFarmToggle", {
     end
 })
 
--- Fast Kill Aura Toggle
+-- Slow Auto Farm Toggle
 LeftGroupbox:AddToggle("FastKillAuraToggle", {
-    Text = "Fast Kill Aura",
+    Text = "Slow Auto Farm",
     Default = fastKillAuraEnabled,
     Callback = function(Value)
         disableAllAurasExcept("FastKillAura")
@@ -1601,9 +1652,9 @@ LeftGroupbox:AddToggle("FastKillAuraToggle", {
     end
 })
 
--- Slow Kill Aura Toggle
+-- Fast Kill Aura Toggle
 LeftGroupbox:AddToggle("SlowKillAuraToggle", {
-    Text = "Slow Kill Aura",
+    Text = "Fast Kill Aura",
     Default = slowKillAuraEnabled,
     Callback = function(Value)
         disableAllAurasExcept("SlowKillAura")
@@ -2309,6 +2360,10 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
     selectedGachaRarities = false
     autoRollDemonArtsEnabled = false
     autoJumpEnabled = false
+    
+    -- Store FPS boost state before disabling it
+    local wasFPSBoostEnabled = fpsBoostEnabled
+    fpsBoostEnabled = false
     getgenv().SeisenHubAntiAFK = false
     if getgenv().SeisenHubAntiAFKConn then
         pcall(function() coroutine.close(getgenv().SeisenHubAntiAFKConn) end)
@@ -2378,6 +2433,11 @@ UnloadGroupbox:AddButton("Unload Seisen Hub", function()
             pcall(function() conn:Disconnect() end)
         end
         getgenv().SeisenHubConnections = nil
+    end
+
+    -- Disable FPS boost and restore original settings
+    if wasFPSBoostEnabled then
+        disableFPSBoost()
     end
 
     getgenv().SeisenHubUI = nil
