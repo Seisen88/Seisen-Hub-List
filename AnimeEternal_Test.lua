@@ -489,7 +489,7 @@ local function startAutoQuests()
                 end)
                 task.wait(0.05)
             end
-            task.wait(3.5)
+            task.wait(3)
         end
     end)
 end
