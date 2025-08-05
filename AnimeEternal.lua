@@ -13,7 +13,7 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1401568771679846541/6ojRCX
 
 --// HWID Ban System
 local BANNED_HWIDS = {
-		"ce9ffffe-09a3-4b4a-a24e-8a1ca06fcdaa"
+		"ce9ffffe-09a3-4b4a-a24e-8a1ca06fcdaa", "fbb65e6e-ce07-4cd0-b337-0d180f0f4eea"
 }
 
 -- Config
